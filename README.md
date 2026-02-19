@@ -288,15 +288,15 @@ Add a body mixin to your Request and implement one method. Lucky sets `Content-T
 ```dart
 class CreatePostRequest extends Request with HasJsonBody {
   final String title;
-  final String body;
+  final String content; // note: don't name this 'body' — conflicts with body() from HasJsonBody
 
-  CreatePostRequest({required this.title, required this.body});
+  CreatePostRequest({required this.title, required this.content});
 
   @override String get method => 'POST';
   @override String resolveEndpoint() => '/posts';
 
   @override
-  Map<String, dynamic> jsonBody() => {'title': title, 'body': body};
+  Map<String, dynamic> jsonBody() => {'title': title, 'body': content};
 }
 ```
 
@@ -607,9 +607,9 @@ class MyConnector extends Connector {
       print('[$level] $message');
     };
 
-  // More verbose structured output
+  // More verbose structured output — use kDebugMode in Flutter, or true/false in Dart
   @override
-  bool get debugMode => kDebugMode;
+  bool get debugMode => true;
 
   @override
   void Function({required String event, String? message, Map<String, dynamic>? data}) get onDebug =>
