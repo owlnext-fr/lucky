@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Current Status
+
+**v1.0.0 implemented and fully documented.** 112 tests passing (unit + integration).
+Features completed: core layer, all body mixins, auth layer, interceptors, exceptions, pluggable per-request authentication.
+
 ## Project Overview
 
 **Lucky Dart** is a Dart/Flutter package for building elegant and maintainable API integrations, inspired by [Saloon PHP](https://docs.saloon.dev/). The spec is in `docs/lucky_dart_spec_v1.1.0.md` and contains all implementation details including exact file names, class names, and complete code.
@@ -16,6 +21,7 @@ The package name is `lucky_dart` and must target Dart SDK `>=3.0.0 <4.0.0` with 
 - **Do not invent features** absent from the spec
 - Use `LuckyException` (not `HttpException`) and `LuckyTimeoutException` (not `TimeoutException`) to avoid conflicts with `dart:io` and `dart:async`
 - Agents may fix spec code where necessary rather than transcribing blindly
+- Run `dart format .` after agent-written code — agents do not auto-format
 
 ## Testing
 
@@ -107,6 +113,7 @@ Mixins on `Request` that automatically set the correct `Content-Type` and overri
 - `BasicAuthenticator` — Base64-encoded credentials
 - `QueryAuthenticator` — API key via query param; use `toQueryMap()` in `Connector.defaultQuery()` (its `apply()` is a no-op)
 - `HeaderAuthenticator` — Custom header
+- **Pluggable auth** — `Connector.authenticator` (nullable getter, re-evaluated each `send()`), `Connector.useAuth` (bool, default true), `Request.useAuth` (bool?, null=inherit / false=disable / true=force)
 
 ### Interceptors (`lib/interceptors/`)
 
@@ -129,3 +136,12 @@ Hierarchy: `LuckyException` (base) → `ConnectionException`, `LuckyTimeoutExcep
 **Configuration cascade** — Connector defaults are overridden by Request values, which are in turn enriched by mixins via `buildOptions()` chain. `ConfigMerger` performs the final merge.
 
 **No logging dependency** — Users wire `onLog`/`onDebug` callbacks to their own logger (e.g. `print`, `logger`, `talker`). Interceptors are only added to Dio if both the flag (`enableLogging`/`debugMode`) AND the callback are non-null.
+
+**Pluggable auth** — `Connector.authenticator` is a getter re-evaluated on every `send()`, enabling runtime mutation (e.g. set token after login). Auth is applied via `ConfigMerger.resolveUseAuth(connectorUseAuth, request.useAuth)`.
+
+## Gotchas
+
+- **`HttpResponse.close()`** returns `Future<void>` — must be awaited in tests. Pattern: `Future<void> _json(...) async { ... await req.response.close(); }`
+- **`Connector._dio` is a singleton** — changing `defaultHeaders()` after the first `send()` has no effect; set `_dio = null` to force re-init.
+- **`DioException.badResponse` never fires** — `validateStatus: (_) => true` routes all HTTP errors through `_buildException()`, not `catch (DioException)`.
+- **`.dart_tool/` and `.claude/`** must be in `.gitignore` — do not track generated files.
