@@ -54,6 +54,7 @@ print(servers.jsonList());
   - [Runtime auth (set after login)](#runtime-auth-set-after-login)
   - [Disable auth per request](#disable-auth-per-request)
 - [Response helpers](#response-helpers)
+  - [Parsing into a model with `as()`](#parsing-into-a-model-with-as)
 - [Error handling](#error-handling)
 - [Logging \& debug](#logging--debug)
 - [Custom interceptors](#custom-interceptors)
