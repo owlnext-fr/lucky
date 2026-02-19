@@ -1,0 +1,18 @@
+name: lucky_dart
+description: >
+  A framework for building elegant and maintainable API integrations in Dart/Flutter,
+  inspired by Saloon PHP. Lucky Dart makes your API calls fast and elegant!
+version: 1.0.0
+homepage: https://github.com/owlnext-fr/lucky_dart
+repository: https://github.com/owlnext-fr/lucky_dart
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  dio: ^5.4.0
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0
+  mocktail: ^0.3.0

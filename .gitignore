@@ -1,1 +1,4 @@
 .worktrees/
+.dart_tool/
+.claude/
+pubspec.lock
