@@ -23,13 +23,12 @@ class LuckyResponse {
   // === Content type detection ===
 
   bool get isJson =>
-    headers['content-type']?.first.contains('application/json') ?? false;
+      headers['content-type']?.first.contains('application/json') ?? false;
 
-  bool get isXml =>
-    headers['content-type']?.first.contains('xml') ?? false;
+  bool get isXml => headers['content-type']?.first.contains('xml') ?? false;
 
   bool get isHtml =>
-    headers['content-type']?.first.contains('text/html') ?? false;
+      headers['content-type']?.first.contains('text/html') ?? false;
 
   // === Parsing helpers ===
 

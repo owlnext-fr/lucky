@@ -48,7 +48,8 @@ class ConfigMerger {
       sendTimeout: req.sendTimeout ?? base.sendTimeout,
       followRedirects: req.followRedirects ?? base.followRedirects ?? true,
       maxRedirects: req.maxRedirects ?? base.maxRedirects ?? 5,
-      persistentConnection: req.persistentConnection ?? base.persistentConnection ?? true,
+      persistentConnection:
+          req.persistentConnection ?? base.persistentConnection ?? true,
       extra: {
         ...?base.extra,
         ...?req.extra,

@@ -34,7 +34,8 @@ class DebugInterceptor extends Interceptor {
   void onResponse(Response response, ResponseInterceptorHandler handler) {
     onDebug(
       event: 'response',
-      message: '[${response.statusCode}] ${response.requestOptions.method} ${response.requestOptions.uri}',
+      message:
+          '[${response.statusCode}] ${response.requestOptions.method} ${response.requestOptions.uri}',
       data: {
         'statusCode': response.statusCode,
         'statusMessage': response.statusMessage,

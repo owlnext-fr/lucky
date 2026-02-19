@@ -38,8 +38,9 @@ void main() {
       i.onResponse(
         Response(
           requestOptions: RequestOptions(
-            path: '/t', method: 'GET', extra: {'logResponse': true}),
-          statusCode: 200, data: {},
+              path: '/t', method: 'GET', extra: {'logResponse': true}),
+          statusCode: 200,
+          data: {},
         ),
         ResponseInterceptorHandler(),
       );
@@ -55,8 +56,9 @@ void main() {
       i.onResponse(
         Response(
           requestOptions: RequestOptions(
-            path: '/t', method: 'GET', extra: {'logResponse': false}),
-          statusCode: 200, data: {},
+              path: '/t', method: 'GET', extra: {'logResponse': false}),
+          statusCode: 200,
+          data: {},
         ),
         ResponseInterceptorHandler(),
       );
@@ -90,8 +92,9 @@ void main() {
       i.onResponse(
         Response(
           requestOptions: RequestOptions(
-            path: '/t', method: 'GET', extra: {'logResponse': true}),
-          statusCode: 401, data: {},
+              path: '/t', method: 'GET', extra: {'logResponse': true}),
+          statusCode: 401,
+          data: {},
         ),
         ResponseInterceptorHandler(),
       );

@@ -18,7 +18,7 @@ void main() {
       auth.apply(options);
       expect(options.headers!['Authorization'], isNotNull);
     });
-    test('implements Authenticator', () =>
-      expect(BasicAuthenticator('u', 'p'), isA<Authenticator>()));
+    test('implements Authenticator',
+        () => expect(BasicAuthenticator('u', 'p'), isA<Authenticator>()));
   });
 }

@@ -16,7 +16,7 @@ void main() {
       auth.apply(options);
       expect(options.headers!['X-Key'], equals('val'));
     });
-    test('implements Authenticator', () =>
-      expect(HeaderAuthenticator('X', 'v'), isA<Authenticator>()));
+    test('implements Authenticator',
+        () => expect(HeaderAuthenticator('X', 'v'), isA<Authenticator>()));
   });
 }

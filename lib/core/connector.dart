@@ -142,7 +142,6 @@ abstract class Connector {
       }
 
       return luckyResponse;
-
     } on DioException catch (e) {
       // Seules les erreurs reseau/timeout arrivent ici
       // (les erreurs HTTP sont gerees au-dessus grace a validateStatus: (_) => true)
@@ -174,7 +173,9 @@ abstract class Connector {
       case 422:
         final data = response.data;
         return ValidationException(
-          data is Map ? (data['message'] ?? 'Validation failed') : 'Validation failed',
+          data is Map
+              ? (data['message'] ?? 'Validation failed')
+              : 'Validation failed',
           errors: data is Map ? data['errors'] : null,
           response: response,
         );

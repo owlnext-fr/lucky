@@ -10,7 +10,8 @@ void main() {
       final i = DebugInterceptor(
         onDebug: ({required event, message, data}) => events.add(event),
       );
-      i.onRequest(RequestOptions(path: '/t', method: 'GET'), RequestInterceptorHandler());
+      i.onRequest(RequestOptions(path: '/t', method: 'GET'),
+          RequestInterceptorHandler());
       expect(events, contains('request'));
     });
 
@@ -20,8 +21,10 @@ void main() {
         onDebug: ({required event, message, data}) => events.add(event),
       );
       i.onResponse(
-        Response(requestOptions: RequestOptions(path: '/t', method: 'GET'),
-          statusCode: 200, data: {}),
+        Response(
+            requestOptions: RequestOptions(path: '/t', method: 'GET'),
+            statusCode: 200,
+            data: {}),
         ResponseInterceptorHandler(),
       );
       expect(events, contains('response'));
@@ -34,8 +37,9 @@ void main() {
       );
       runZonedGuarded(() {
         i.onError(
-          DioException(requestOptions: RequestOptions(path: '/t', method: 'GET'),
-            type: DioExceptionType.connectionError),
+          DioException(
+              requestOptions: RequestOptions(path: '/t', method: 'GET'),
+              type: DioExceptionType.connectionError),
           ErrorInterceptorHandler(),
         );
       }, (_, __) {});
@@ -47,7 +51,8 @@ void main() {
       final i = DebugInterceptor(
         onDebug: ({required event, message, data}) => captured = data,
       );
-      i.onRequest(RequestOptions(path: '/t', method: 'DELETE'), RequestInterceptorHandler());
+      i.onRequest(RequestOptions(path: '/t', method: 'DELETE'),
+          RequestInterceptorHandler());
       expect(captured!['method'], equals('DELETE'));
     });
   });

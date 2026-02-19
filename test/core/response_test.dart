@@ -17,54 +17,82 @@ Response<dynamic> makeResponse({
 
 void main() {
   group('LuckyResponse.status helpers', () {
-    test('isSuccessful for 200', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 200)).isSuccessful, isTrue));
-    test('isSuccessful for 204', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 204)).isSuccessful, isTrue));
-    test('isSuccessful false for 300', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 300)).isSuccessful, isFalse));
-    test('isClientError for 400', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 400)).isClientError, isTrue));
-    test('isClientError for 404', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 404)).isClientError, isTrue));
-    test('isClientError false for 500', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 500)).isClientError, isFalse));
-    test('isServerError for 500', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 500)).isServerError, isTrue));
-    test('isServerError for 503', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 503)).isServerError, isTrue));
-    test('isRedirect for 301', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 301)).isRedirect, isTrue));
-    test('statusCode returns raw value', () =>
-      expect(LuckyResponse(makeResponse(statusCode: 422)).statusCode, equals(422)));
+    test(
+        'isSuccessful for 200',
+        () => expect(
+            LuckyResponse(makeResponse(statusCode: 200)).isSuccessful, isTrue));
+    test(
+        'isSuccessful for 204',
+        () => expect(
+            LuckyResponse(makeResponse(statusCode: 204)).isSuccessful, isTrue));
+    test(
+        'isSuccessful false for 300',
+        () => expect(LuckyResponse(makeResponse(statusCode: 300)).isSuccessful,
+            isFalse));
+    test(
+        'isClientError for 400',
+        () => expect(LuckyResponse(makeResponse(statusCode: 400)).isClientError,
+            isTrue));
+    test(
+        'isClientError for 404',
+        () => expect(LuckyResponse(makeResponse(statusCode: 404)).isClientError,
+            isTrue));
+    test(
+        'isClientError false for 500',
+        () => expect(LuckyResponse(makeResponse(statusCode: 500)).isClientError,
+            isFalse));
+    test(
+        'isServerError for 500',
+        () => expect(LuckyResponse(makeResponse(statusCode: 500)).isServerError,
+            isTrue));
+    test(
+        'isServerError for 503',
+        () => expect(LuckyResponse(makeResponse(statusCode: 503)).isServerError,
+            isTrue));
+    test(
+        'isRedirect for 301',
+        () => expect(
+            LuckyResponse(makeResponse(statusCode: 301)).isRedirect, isTrue));
+    test(
+        'statusCode returns raw value',
+        () => expect(LuckyResponse(makeResponse(statusCode: 422)).statusCode,
+            equals(422)));
   });
 
   group('LuckyResponse.content type', () {
     test('isJson with application/json', () {
       final r = LuckyResponse(makeResponse(
         statusCode: 200,
-        headers: {'content-type': ['application/json; charset=utf-8']},
+        headers: {
+          'content-type': ['application/json; charset=utf-8']
+        },
       ));
       expect(r.isJson, isTrue);
     });
     test('isJson false with text/plain', () {
       final r = LuckyResponse(makeResponse(
         statusCode: 200,
-        headers: {'content-type': ['text/plain']},
+        headers: {
+          'content-type': ['text/plain']
+        },
       ));
       expect(r.isJson, isFalse);
     });
     test('isXml with application/xml', () {
       final r = LuckyResponse(makeResponse(
         statusCode: 200,
-        headers: {'content-type': ['application/xml']},
+        headers: {
+          'content-type': ['application/xml']
+        },
       ));
       expect(r.isXml, isTrue);
     });
     test('isHtml with text/html', () {
       final r = LuckyResponse(makeResponse(
         statusCode: 200,
-        headers: {'content-type': ['text/html']},
+        headers: {
+          'content-type': ['text/html']
+        },
       ));
       expect(r.isHtml, isTrue);
     });
@@ -90,7 +118,8 @@ void main() {
       expect(r.text(), equals('hello'));
     });
     test('as() applies transformer', () {
-      final r = LuckyResponse(makeResponse(statusCode: 200, data: {'name': 'Alice'}));
+      final r =
+          LuckyResponse(makeResponse(statusCode: 200, data: {'name': 'Alice'}));
       final name = r.as((res) => res.json()['name'] as String);
       expect(name, equals('Alice'));
     });

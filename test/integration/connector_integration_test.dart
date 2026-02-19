@@ -14,18 +14,25 @@ class _TestConnector extends Connector {
   _TestConnector(this._baseUrl, {bool throwErrors = true})
       : _throwErrors = throwErrors;
 
-  @override String resolveBaseUrl() => _baseUrl;
-  @override bool get throwOnError => _throwErrors;
-  @override bool get enableLogging => true;
-  @override bool get debugMode => true;
+  @override
+  String resolveBaseUrl() => _baseUrl;
+  @override
+  bool get throwOnError => _throwErrors;
+  @override
+  bool get enableLogging => true;
+  @override
+  bool get debugMode => true;
 
   @override
-  void Function({required String message, String? level, String? context}) get onLog =>
-    ({required message, level, context}) => logMessages.add(message);
+  void Function({required String message, String? level, String? context})
+      get onLog =>
+          ({required message, level, context}) => logMessages.add(message);
 
   @override
-  void Function({required String event, String? message, Map<String, dynamic>? data}) get onDebug =>
-    ({required event, message, data}) => debugEvents.add(event);
+  void Function(
+          {required String event, String? message, Map<String, dynamic>? data})
+      get onDebug =>
+          ({required event, message, data}) => debugEvents.add(event);
 }
 
 // -- Concrete requests for tests ----------------------------------------------
@@ -33,39 +40,53 @@ class _TestConnector extends Connector {
 class _Get extends Request {
   final String _path;
   _Get(this._path);
-  @override String get method => 'GET';
-  @override String resolveEndpoint() => _path;
+  @override
+  String get method => 'GET';
+  @override
+  String resolveEndpoint() => _path;
 }
 
 class _PostJson extends Request with HasJsonBody {
   final String _path;
   final Map<String, dynamic> _data;
   _PostJson(this._path, this._data);
-  @override String get method => 'POST';
-  @override String resolveEndpoint() => _path;
-  @override Map<String, dynamic> jsonBody() => _data;
+  @override
+  String get method => 'POST';
+  @override
+  String resolveEndpoint() => _path;
+  @override
+  Map<String, dynamic> jsonBody() => _data;
 }
 
 class _GetWithQuery extends Request {
-  @override String get method => 'GET';
-  @override String resolveEndpoint() => '/data';
-  @override Map<String, dynamic> queryParameters() => {'page': '2'};
+  @override
+  String get method => 'GET';
+  @override
+  String resolveEndpoint() => '/data';
+  @override
+  Map<String, dynamic> queryParameters() => {'page': '2'};
 }
 
 class _ConnectorWithDefaultHeaders extends Connector {
   final String _baseUrl;
   _ConnectorWithDefaultHeaders(this._baseUrl);
-  @override String resolveBaseUrl() => _baseUrl;
-  @override Map<String, String>? defaultHeaders() => {'X-Default': 'yes'};
-  @override bool get throwOnError => false;
+  @override
+  String resolveBaseUrl() => _baseUrl;
+  @override
+  Map<String, String>? defaultHeaders() => {'X-Default': 'yes'};
+  @override
+  bool get throwOnError => false;
 }
 
 class _ConnectorWithQuery extends Connector {
   final String _baseUrl;
   _ConnectorWithQuery(this._baseUrl);
-  @override String resolveBaseUrl() => _baseUrl;
-  @override Map<String, dynamic>? defaultQuery() => {'version': '2'};
-  @override bool get throwOnError => false;
+  @override
+  String resolveBaseUrl() => _baseUrl;
+  @override
+  Map<String, dynamic>? defaultQuery() => {'version': '2'};
+  @override
+  bool get throwOnError => false;
 }
 
 // -- Mock server helpers ------------------------------------------------------
@@ -114,19 +135,24 @@ void main() {
 
   setUp(() async {
     await _startServer({
-      'GET /users':    (r) async => _json(r, 200, [{'id': 1}]),
-      'POST /users':   (r) async => _json(r, 201, {'id': 2, 'name': 'Bob'}),
-      'GET /401':      (r) async => _json(r, 401, {'message': 'Unauthorized'}),
-      'GET /404':      (r) async => _json(r, 404, {'message': 'Not found'}),
-      'POST /422':     (r) async => _json(r, 422, {
-        'message': 'Validation failed',
-        'errors': {'email': ['required']},
-      }),
-      'GET /500':      (r) async => _json(r, 500, {'message': 'Server error'}),
-      'GET /data':     (r) async => _json(r, 200, {'page': r.uri.queryParameters['page']}),
-      'GET /headers':  (r) async => _json(r, 200, {
-        'x-default': r.headers.value('x-default'),
-      }),
+      'GET /users': (r) async => _json(r, 200, [
+            {'id': 1}
+          ]),
+      'POST /users': (r) async => _json(r, 201, {'id': 2, 'name': 'Bob'}),
+      'GET /401': (r) async => _json(r, 401, {'message': 'Unauthorized'}),
+      'GET /404': (r) async => _json(r, 404, {'message': 'Not found'}),
+      'POST /422': (r) async => _json(r, 422, {
+            'message': 'Validation failed',
+            'errors': {
+              'email': ['required']
+            },
+          }),
+      'GET /500': (r) async => _json(r, 500, {'message': 'Server error'}),
+      'GET /data': (r) async =>
+          _json(r, 200, {'page': r.uri.queryParameters['page']}),
+      'GET /headers': (r) async => _json(r, 200, {
+            'x-default': r.headers.value('x-default'),
+          }),
     });
     connector = _TestConnector('http://127.0.0.1:$_port');
   });
@@ -193,14 +219,16 @@ void main() {
 
   group('throwOnError=false', () {
     test('404 returns response without throwing', () async {
-      final silent = _TestConnector('http://127.0.0.1:$_port', throwErrors: false);
+      final silent =
+          _TestConnector('http://127.0.0.1:$_port', throwErrors: false);
       final r = await silent.send(_Get('/404'));
       expect(r.statusCode, 404);
       expect(r.isClientError, isTrue);
     });
 
     test('500 returns response without throwing', () async {
-      final silent = _TestConnector('http://127.0.0.1:$_port', throwErrors: false);
+      final silent =
+          _TestConnector('http://127.0.0.1:$_port', throwErrors: false);
       final r = await silent.send(_Get('/500'));
       expect(r.statusCode, 500);
       expect(r.isServerError, isTrue);

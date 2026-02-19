@@ -48,7 +48,8 @@ class LoggingInterceptor extends Interceptor {
 
     final buffer = StringBuffer();
     buffer.writeln('RESPONSE');
-    buffer.writeln('[${response.statusCode}] ${response.requestOptions.method} ${response.requestOptions.uri}');
+    buffer.writeln(
+        '[${response.statusCode}] ${response.requestOptions.method} ${response.requestOptions.uri}');
     buffer.writeln('Data: ${response.data}');
 
     onLog(
