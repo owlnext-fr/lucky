@@ -89,6 +89,46 @@ class _ConnectorWithQuery extends Connector {
   bool get throwOnError => false;
 }
 
+class _AuthConnector extends Connector {
+  final String _baseUrl;
+  final Authenticator? _auth;
+  final bool _connectorUseAuth;
+
+  _AuthConnector(
+    this._baseUrl, {
+    Authenticator? auth,
+    bool connectorUseAuth = true,
+  })  : _auth = auth,
+        _connectorUseAuth = connectorUseAuth;
+
+  @override
+  String resolveBaseUrl() => _baseUrl;
+  @override
+  Authenticator? get authenticator => _auth;
+  @override
+  bool get useAuth => _connectorUseAuth;
+  @override
+  bool get throwOnError => false;
+}
+
+class _GetNoAuth extends Request {
+  @override
+  String get method => 'GET';
+  @override
+  String resolveEndpoint() => '/protected';
+  @override
+  bool? get useAuth => false;
+}
+
+class _GetForceAuth extends Request {
+  @override
+  String get method => 'GET';
+  @override
+  String resolveEndpoint() => '/protected';
+  @override
+  bool? get useAuth => true;
+}
+
 // -- Mock server helpers ------------------------------------------------------
 
 HttpServer? _server;
@@ -120,12 +160,12 @@ Future<void> _stopServer() async {
   _port = 0;
 }
 
-void _json(HttpRequest req, int status, Object body) {
+Future<void> _json(HttpRequest req, int status, Object body) async {
   req.response
     ..statusCode = status
     ..headers.contentType = ContentType.json
     ..write(jsonEncode(body));
-  req.response.close();
+  await req.response.close();
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -135,23 +175,26 @@ void main() {
 
   setUp(() async {
     await _startServer({
-      'GET /users': (r) async => _json(r, 200, [
+      'GET /users': (r) async => await _json(r, 200, [
             {'id': 1}
           ]),
-      'POST /users': (r) async => _json(r, 201, {'id': 2, 'name': 'Bob'}),
-      'GET /401': (r) async => _json(r, 401, {'message': 'Unauthorized'}),
-      'GET /404': (r) async => _json(r, 404, {'message': 'Not found'}),
-      'POST /422': (r) async => _json(r, 422, {
+      'POST /users': (r) async => await _json(r, 201, {'id': 2, 'name': 'Bob'}),
+      'GET /401': (r) async => await _json(r, 401, {'message': 'Unauthorized'}),
+      'GET /404': (r) async => await _json(r, 404, {'message': 'Not found'}),
+      'POST /422': (r) async => await _json(r, 422, {
             'message': 'Validation failed',
             'errors': {
               'email': ['required']
             },
           }),
-      'GET /500': (r) async => _json(r, 500, {'message': 'Server error'}),
+      'GET /500': (r) async => await _json(r, 500, {'message': 'Server error'}),
       'GET /data': (r) async =>
-          _json(r, 200, {'page': r.uri.queryParameters['page']}),
-      'GET /headers': (r) async => _json(r, 200, {
+          await _json(r, 200, {'page': r.uri.queryParameters['page']}),
+      'GET /headers': (r) async => await _json(r, 200, {
             'x-default': r.headers.value('x-default'),
+          }),
+      'GET /protected': (r) async => await _json(r, 200, {
+            'auth': r.headers.value('authorization'),
           }),
     });
     connector = _TestConnector('http://127.0.0.1:$_port');
@@ -261,6 +304,43 @@ void main() {
       await connector.send(_Get('/users'));
       expect(connector.debugEvents, contains('request'));
       expect(connector.debugEvents, contains('response'));
+    });
+  });
+
+  group('Authentication', () {
+    test('authenticator applies header when useAuth defaults to true', () async {
+      final c = _AuthConnector(
+        'http://127.0.0.1:$_port',
+        auth: TokenAuthenticator('secret'),
+      );
+      final r = await c.send(_Get('/protected'));
+      expect(r.json()['auth'], equals('Bearer secret'));
+    });
+
+    test('request useAuth=false skips authenticator', () async {
+      final c = _AuthConnector(
+        'http://127.0.0.1:$_port',
+        auth: TokenAuthenticator('secret'),
+      );
+      final r = await c.send(_GetNoAuth());
+      expect(r.json()['auth'], isNull);
+    });
+
+    test('request useAuth=true forces auth when connector useAuth=false',
+        () async {
+      final c = _AuthConnector(
+        'http://127.0.0.1:$_port',
+        auth: TokenAuthenticator('secret'),
+        connectorUseAuth: false,
+      );
+      final r = await c.send(_GetForceAuth());
+      expect(r.json()['auth'], equals('Bearer secret'));
+    });
+
+    test('no authenticator means no Authorization header', () async {
+      final c = _AuthConnector('http://127.0.0.1:$_port');
+      final r = await c.send(_Get('/protected'));
+      expect(r.json()['auth'], isNull);
     });
   });
 }

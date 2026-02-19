@@ -60,4 +60,15 @@ abstract class Request {
   /// Defaults to `true`. Set to `false` to suppress response logging for
   /// this particular request.
   bool get logResponse => true;
+
+  // === Authentication control ===
+
+  /// Per-request authentication override.
+  ///
+  /// - `null`  — inherits [Connector.useAuth] (default behaviour).
+  /// - `false` — disables auth for this request regardless of the connector
+  ///   setting. Use for endpoints that must be called unauthenticated,
+  ///   such as a login or token-refresh endpoint.
+  /// - `true`  — forces auth even if [Connector.useAuth] is `false`.
+  bool? get useAuth => null;
 }

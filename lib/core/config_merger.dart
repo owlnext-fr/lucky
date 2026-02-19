@@ -78,4 +78,19 @@ class ConfigMerger {
       },
     );
   }
+
+  /// Resolves the effective authentication flag by merging connector and request settings.
+  ///
+  /// The request takes priority: if [requestUseAuth] is non-null it is returned
+  /// directly. A `null` value means the request has no opinion and falls back to
+  /// [connectorUseAuth].
+  ///
+  /// | [connectorUseAuth] | [requestUseAuth] | Result |
+  /// |---|---|---|
+  /// | true  | null  | true  |
+  /// | false | null  | false |
+  /// | true  | false | false |
+  /// | false | true  | true  |
+  static bool resolveUseAuth(bool connectorUseAuth, bool? requestUseAuth) =>
+      requestUseAuth ?? connectorUseAuth;
 }
