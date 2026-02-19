@@ -160,12 +160,12 @@ Future<void> _stopServer() async {
   _port = 0;
 }
 
-void _json(HttpRequest req, int status, Object body) {
+Future<void> _json(HttpRequest req, int status, Object body) async {
   req.response
     ..statusCode = status
     ..headers.contentType = ContentType.json
     ..write(jsonEncode(body));
-  req.response.close();
+  await req.response.close();
 }
 
 // -- Tests --------------------------------------------------------------------
@@ -175,25 +175,25 @@ void main() {
 
   setUp(() async {
     await _startServer({
-      'GET /users': (r) async => _json(r, 200, [
+      'GET /users': (r) async => await _json(r, 200, [
             {'id': 1}
           ]),
-      'POST /users': (r) async => _json(r, 201, {'id': 2, 'name': 'Bob'}),
-      'GET /401': (r) async => _json(r, 401, {'message': 'Unauthorized'}),
-      'GET /404': (r) async => _json(r, 404, {'message': 'Not found'}),
-      'POST /422': (r) async => _json(r, 422, {
+      'POST /users': (r) async => await _json(r, 201, {'id': 2, 'name': 'Bob'}),
+      'GET /401': (r) async => await _json(r, 401, {'message': 'Unauthorized'}),
+      'GET /404': (r) async => await _json(r, 404, {'message': 'Not found'}),
+      'POST /422': (r) async => await _json(r, 422, {
             'message': 'Validation failed',
             'errors': {
               'email': ['required']
             },
           }),
-      'GET /500': (r) async => _json(r, 500, {'message': 'Server error'}),
+      'GET /500': (r) async => await _json(r, 500, {'message': 'Server error'}),
       'GET /data': (r) async =>
-          _json(r, 200, {'page': r.uri.queryParameters['page']}),
-      'GET /headers': (r) async => _json(r, 200, {
+          await _json(r, 200, {'page': r.uri.queryParameters['page']}),
+      'GET /headers': (r) async => await _json(r, 200, {
             'x-default': r.headers.value('x-default'),
           }),
-      'GET /protected': (r) async => _json(r, 200, {
+      'GET /protected': (r) async => await _json(r, 200, {
             'auth': r.headers.value('authorization'),
           }),
     });

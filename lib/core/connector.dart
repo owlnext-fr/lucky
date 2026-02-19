@@ -206,17 +206,17 @@ abstract class Connector {
       options.extra!['logRequest'] = request.logRequest;
       options.extra!['logResponse'] = request.logResponse;
 
-      // 4.5. Apply the authenticator when auth is enabled for this request.
+      // 5. Apply the authenticator when auth is enabled for this request.
       final effectiveUseAuth =
           ConfigMerger.resolveUseAuth(useAuth, request.useAuth);
       if (effectiveUseAuth && authenticator != null) {
         authenticator!.apply(options);
       }
 
-      // 5. Resolve the body, awaiting it if it is a Future (e.g. multipart).
+      // 6. Resolve the body, awaiting it if it is a Future (e.g. multipart).
       final body = await _resolveBody(request);
 
-      // 6. Dispatch the request through Dio.
+      // 7. Dispatch the request through Dio.
       final response = await dio.request(
         request.resolveEndpoint(),
         queryParameters: query,
@@ -226,7 +226,7 @@ abstract class Connector {
 
       final luckyResponse = LuckyResponse(response);
 
-      // 7. Lucky—not Dio—is responsible for HTTP error handling.
+      // 8. Lucky—not Dio—is responsible for HTTP error handling.
       if (throwOnError && !luckyResponse.isSuccessful) {
         throw _buildException(luckyResponse);
       }
