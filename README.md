@@ -1,6 +1,20 @@
-# Lucky Dart 🤠
+<h1 align="center">🤠</h1>
+<h1 align="center">Lucky Dart</h1>
 
-> Build structured, maintainable API clients in Dart/Flutter — **no code generation required**.
+<p align="center">
+  <strong>Build structured, maintainable API clients in Dart/Flutter — no code generation required.</strong>
+</p>
+
+<p align="center">
+  <a href="https://pub.dev/packages/lucky_dart"><img src="https://img.shields.io/pub/v/lucky_dart.svg?label=pub.dev&color=orange" alt="pub version"></a>
+  <a href="https://pub.dev/packages/lucky_dart/score"><img src="https://img.shields.io/pub/points/lucky_dart?label=pub%20points&color=brightgreen" alt="pub points"></a>
+  <a href="https://pub.dev/packages/lucky_dart/score"><img src="https://img.shields.io/pub/likes/lucky_dart?label=likes&color=pink" alt="pub likes"></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/dart-%3E%3D3.0.0-00B4AB?logo=dart&logoColor=white" alt="Dart SDK"></a>
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/flutter-compatible-02569B?logo=flutter&logoColor=white" alt="Flutter compatible"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+</p>
+
+---
 
 Lucky Dart gives you a clean, object-oriented way to organise all your API calls. Instead of scattering `http.get(...)` calls across your codebase, you define one **Connector** per API and one **Request** class per endpoint. Every call is typed, testable, and consistent.
 
