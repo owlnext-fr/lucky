@@ -1,5 +1,5 @@
 <h1 align="center">🤠</h1>
-<h1 align="center">Lucky Dart</h1>
+<h1 align="center">Lucky</h1>
 
 <p align="center">
   <strong>Build structured, maintainable API clients in Dart/Flutter — no code generation required.</strong>
@@ -16,7 +16,8 @@
 
 ---
 
-Lucky Dart gives you a clean, object-oriented way to organise all your API calls. Instead of scattering `http.get(...)` calls across your codebase, you define one **Connector** per API and one **Request** class per endpoint. Every call is typed, testable, and consistent.
+
+Lucky gives you a clean, object-oriented way to organise all your API calls. Instead of scattering `http.get(...)` calls across your codebase, you define one **Connector** per API and one **Request** class per endpoint. Every call is typed, testable, and consistent.
 
 ```dart
 final api = ForgeConnector(token: myToken);
@@ -28,19 +29,23 @@ print(servers.jsonList());
 
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Installation](#installation)
 - [Core concepts](#core-concepts)
 - [Quick start](#quick-start)
 - [Connector](#connector)
 - [Request](#request)
-- [Endpoint pattern](#endpoint-pattern) — `connector.users.list()`
+- [Endpoint pattern](#endpoint-pattern)
+  - [Defining endpoints](#defining-endpoints)
+  - [Wiring into the Connector](#wiring-into-the-connector)
+  - [Usage](#usage)
 - [Body mixins](#body-mixins)
-  - [JSON](#json-hasjsonbody)
-  - [Form URL-encoded](#form-url-encoded-hasformbody)
-  - [Multipart / file upload](#multipart--file-upload-hasmultipartbody)
-  - [XML](#xml-hasxmlbody)
-  - [Plain text](#plain-text-hastextbody)
-  - [Binary stream](#binary-stream-hasstreambody)
+  - [JSON (`HasJsonBody`)](#json-hasjsonbody)
+  - [Form URL-encoded (`HasFormBody`)](#form-url-encoded-hasformbody)
+  - [Multipart / file upload (`HasMultipartBody`)](#multipart--file-upload-hasmultipartbody)
+  - [XML (`HasXmlBody`)](#xml-hasxmlbody)
+  - [Plain text (`HasTextBody`)](#plain-text-hastextbody)
+  - [Binary stream (`HasStreamBody`)](#binary-stream-hasstreambody)
 - [Authentication](#authentication)
   - [Bearer token](#bearer-token)
   - [Basic auth](#basic-auth)
@@ -50,7 +55,7 @@ print(servers.jsonList());
   - [Disable auth per request](#disable-auth-per-request)
 - [Response helpers](#response-helpers)
 - [Error handling](#error-handling)
-- [Logging & debug](#logging--debug)
+- [Logging \& debug](#logging--debug)
 - [Custom interceptors](#custom-interceptors)
 - [Why Lucky?](#why-lucky)
 
@@ -71,13 +76,13 @@ dart pub get
 
 ## Core concepts
 
-| Concept | Role |
-|---------|------|
-| **Connector** | One per API — holds base URL, default headers, auth, Dio singleton |
-| **Request** | One per endpoint — defines method, path, body, query params |
-| **LuckyResponse** | Wraps `dio.Response` with status helpers and parsing shortcuts |
-| **Authenticator** | Pluggable auth strategy applied automatically to every request |
-| **Body mixin** | Adds `Content-Type` and `body()` to a Request in one line |
+| Concept           | Role                                                               |
+| ----------------- | ------------------------------------------------------------------ |
+| **Connector**     | One per API — holds base URL, default headers, auth, Dio singleton |
+| **Request**       | One per endpoint — defines method, path, body, query params        |
+| **LuckyResponse** | Wraps `dio.Response` with status helpers and parsing shortcuts     |
+| **Authenticator** | Pluggable auth strategy applied automatically to every request     |
+| **Body mixin**    | Adds `Content-Type` and `body()` to a Request in one line          |
 
 ---
 
@@ -146,20 +151,20 @@ class GithubConnector extends Connector {
 
 **Available overrides:**
 
-| Getter / Method | Default | Description |
-|---|---|---|
-| `resolveBaseUrl()` | — | **Required.** Base URL for all requests. |
-| `defaultHeaders()` | `null` | Headers merged into every request. |
-| `defaultQuery()` | `null` | Query params merged into every request. |
-| `defaultOptions()` | `null` | Dio `Options` merged into every request. |
-| `authenticator` | `null` | Auth strategy applied to every request. |
-| `useAuth` | `true` | Enable/disable auth at the connector level. |
-| `throwOnError` | `true` | Throw typed exceptions for 4xx/5xx. |
-| `enableLogging` | `false` | Enable the logging interceptor. |
-| `onLog` | `null` | Logging callback (wired to your own logger). |
-| `debugMode` | `false` | Enable the debug interceptor. |
-| `onDebug` | `null` | Debug callback. |
-| `interceptors` | `[]` | Additional Dio interceptors. |
+| Getter / Method    | Default | Description                                  |
+| ------------------ | ------- | -------------------------------------------- |
+| `resolveBaseUrl()` | —       | **Required.** Base URL for all requests.     |
+| `defaultHeaders()` | `null`  | Headers merged into every request.           |
+| `defaultQuery()`   | `null`  | Query params merged into every request.      |
+| `defaultOptions()` | `null`  | Dio `Options` merged into every request.     |
+| `authenticator`    | `null`  | Auth strategy applied to every request.      |
+| `useAuth`          | `true`  | Enable/disable auth at the connector level.  |
+| `throwOnError`     | `true`  | Throw typed exceptions for 4xx/5xx.          |
+| `enableLogging`    | `false` | Enable the logging interceptor.              |
+| `onLog`            | `null`  | Logging callback (wired to your own logger). |
+| `debugMode`        | `false` | Enable the debug interceptor.                |
+| `onDebug`          | `null`  | Debug callback.                              |
+| `interceptors`     | `[]`    | Additional Dio interceptors.                 |
 
 ---
 
@@ -190,17 +195,17 @@ class GetRepositoryRequest extends Request {
 
 **Available overrides:**
 
-| Getter / Method | Default | Description |
-|---|---|---|
-| `method` | — | **Required.** HTTP verb (`GET`, `POST`, etc.) |
-| `resolveEndpoint()` | — | **Required.** Path relative to base URL. |
-| `headers()` | `null` | Extra headers (merged on top of connector defaults). |
-| `queryParameters()` | `null` | Extra query params (merged on top of connector defaults). |
-| `body()` | `null` | Request body. Usually set by a body mixin. |
-| `buildOptions()` | — | Dio `Options`. Body mixins enrich this automatically. |
-| `useAuth` | `null` | Per-request auth override (`null`=inherit, `false`=off, `true`=force). |
-| `logRequest` | `true` | Include this request in logs. Set `false` for sensitive requests. |
-| `logResponse` | `true` | Include the response in logs. |
+| Getter / Method     | Default | Description                                                            |
+| ------------------- | ------- | ---------------------------------------------------------------------- |
+| `method`            | —       | **Required.** HTTP verb (`GET`, `POST`, etc.)                          |
+| `resolveEndpoint()` | —       | **Required.** Path relative to base URL.                               |
+| `headers()`         | `null`  | Extra headers (merged on top of connector defaults).                   |
+| `queryParameters()` | `null`  | Extra query params (merged on top of connector defaults).              |
+| `body()`            | `null`  | Request body. Usually set by a body mixin.                             |
+| `buildOptions()`    | —       | Dio `Options`. Body mixins enrich this automatically.                  |
+| `useAuth`           | `null`  | Per-request auth override (`null`=inherit, `false`=off, `true`=force). |
+| `logRequest`        | `true`  | Include this request in logs. Set `false` for sensitive requests.      |
+| `logResponse`       | `true`  | Include the response in logs.                                          |
 
 ---
 
@@ -514,11 +519,11 @@ class LoginRequest extends Request with HasFormBody {
 
 **`Request.useAuth` values:**
 
-| Value | Effect |
-|-------|--------|
-| `null` (default) | Inherits `Connector.useAuth` |
-| `false` | Disables auth for this request |
-| `true` | Forces auth even if `Connector.useAuth` is `false` |
+| Value            | Effect                                             |
+| ---------------- | -------------------------------------------------- |
+| `null` (default) | Inherits `Connector.useAuth`                       |
+| `false`          | Disables auth for this request                     |
+| `true`           | Forces auth even if `Connector.useAuth` is `false` |
 
 ---
 
