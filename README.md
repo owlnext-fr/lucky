@@ -550,8 +550,39 @@ r.jsonList()   // List<dynamic>
 r.text()       // String
 r.bytes()      // List<int>
 
-// Custom transformation
+// Custom transformation with as()
 final user = r.as((res) => User.fromJson(res.json()));
+```
+
+### Parsing into a model with `as()`
+
+`as<T>()` applies a custom transformer to the response, letting you map the raw JSON directly into your own model class:
+
+```dart
+class User {
+  final int id;
+  final String name;
+  final String email;
+
+  User.fromJson(Map<String, dynamic> json)
+      : id = json['id'] as int,
+        name = json['name'] as String,
+        email = json['email'] as String;
+}
+
+final response = await connector.send(GetUserRequest(42));
+final user = response.as((r) => User.fromJson(r.json()));
+print(user.name);  // Alice
+```
+
+For a list of objects:
+
+```dart
+final response = await connector.send(GetUsersRequest());
+final users = response.as(
+  (r) => r.jsonList().map((e) => User.fromJson(e as Map<String, dynamic>)).toList(),
+);
+print(users.length); // 10
 ```
 
 ---
