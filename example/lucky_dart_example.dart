@@ -3,39 +3,41 @@ import 'package:lucky_dart/lucky_dart.dart';
 
 // ─── 1. Define the Connector ─────────────────────────────────────────────────
 
-/// One Connector per API — holds base URL, default headers, and auth.
+/// One Connector per API — holds the base URL, default headers, and auth.
+///
+/// The [posts] accessor groups all post-related calls, enabling
+/// `api.posts.list()` instead of `api.send(GetPostsRequest())`.
 class JsonPlaceholderConnector extends Connector {
+  JsonPlaceholderConnector({Authenticator? auth}) : _auth = auth;
+  final Authenticator? _auth;
+
   @override
   String resolveBaseUrl() => 'https://jsonplaceholder.typicode.com';
 
   @override
   Map<String, String>? defaultHeaders() => {'Accept': 'application/json'};
+
+  @override
+  Authenticator? get authenticator => _auth;
+
+  // Endpoint accessor — enables api.posts.list(), api.posts.get(1), etc.
+  late final posts = PostsEndpoint(this);
 }
 
-// ─── 2. Define Requests ──────────────────────────────────────────────────────
+// ─── 2. Requests ─────────────────────────────────────────────────────────────
 
-/// GET /posts — returns a list of posts.
 class GetPostsRequest extends Request {
-  @override
-  String get method => 'GET';
-
-  @override
-  String resolveEndpoint() => '/posts';
+  @override String get method => 'GET';
+  @override String resolveEndpoint() => '/posts';
 }
 
-/// GET /posts/:id — returns a single post.
 class GetPostRequest extends Request {
   final int id;
   GetPostRequest(this.id);
-
-  @override
-  String get method => 'GET';
-
-  @override
-  String resolveEndpoint() => '/posts/$id';
+  @override String get method => 'GET';
+  @override String resolveEndpoint() => '/posts/$id';
 }
 
-/// POST /posts — creates a post with a JSON body.
 class CreatePostRequest extends Request with HasJsonBody {
   final String title;
   final String content;
@@ -47,11 +49,8 @@ class CreatePostRequest extends Request with HasJsonBody {
     required this.userId,
   });
 
-  @override
-  String get method => 'POST';
-
-  @override
-  String resolveEndpoint() => '/posts';
+  @override String get method => 'POST';
+  @override String resolveEndpoint() => '/posts';
 
   @override
   Map<String, dynamic> jsonBody() => {
@@ -61,19 +60,15 @@ class CreatePostRequest extends Request with HasJsonBody {
       };
 }
 
-// ─── 3. Endpoint class (optional but recommended for large APIs) ──────────────
+// ─── 3. Endpoint class ───────────────────────────────────────────────────────
 
 /// Groups all post-related requests under one namespace.
-///
-/// Enables the `connector.posts.list()` calling pattern.
 class PostsEndpoint {
   final Connector _connector;
   PostsEndpoint(this._connector);
 
   Future<LuckyResponse> list() => _connector.send(GetPostsRequest());
-
   Future<LuckyResponse> get(int id) => _connector.send(GetPostRequest(id));
-
   Future<LuckyResponse> create({
     required String title,
     required String content,
@@ -86,73 +81,46 @@ class PostsEndpoint {
       ));
 }
 
-/// Connector with endpoint accessors — enables `api.posts.list()`.
-class ApiConnector extends Connector {
-  ApiConnector({Authenticator? auth}) : _auth = auth;
-  final Authenticator? _auth;
-
-  @override
-  String resolveBaseUrl() => 'https://jsonplaceholder.typicode.com';
-
-  @override
-  Map<String, String>? defaultHeaders() => {'Accept': 'application/json'};
-
-  @override
-  Authenticator? get authenticator => _auth;
-
-  // Endpoint accessors
-  late final posts = PostsEndpoint(this);
-}
-
 // ─── 4. Main ─────────────────────────────────────────────────────────────────
 
 Future<void> main() async {
-  final api = ApiConnector();
+  final api = JsonPlaceholderConnector();
 
-  // ── GET list ────────────────────────────────────────────────────────────────
+  // ── GET list ─────────────────────────────────────────────────────────────────
   print('--- Listing posts ---');
-  final listResponse = await api.posts.list();
-  final posts = listResponse.jsonList();
-  print('Got ${posts.length} posts');
-  print('First: ${posts.first['title']}');
+  final posts = await api.posts.list();
+  final items = posts.jsonList();
+  print('Got ${items.length} posts');
+  print('First: ${items.first['title']}');
 
-  // ── GET single ──────────────────────────────────────────────────────────────
+  // ── GET single ───────────────────────────────────────────────────────────────
   print('\n--- Getting post #1 ---');
-  final postResponse = await api.posts.get(1);
-  final post = postResponse.json();
-  print('Title: ${post['title']}');
-  print('Body: ${post['body']}');
+  final post = await api.posts.get(1);
+  print('Title: ${post.json()['title']}');
+  print('isSuccessful: ${post.isSuccessful}');
+  print('isJson: ${post.isJson}');
 
-  // ── POST (JSON body) ────────────────────────────────────────────────────────
+  // Custom transformer
+  final title = post.as((r) => r.json()['title'] as String);
+  print('title via as(): $title');
+
+  // ── POST (JSON body) ──────────────────────────────────────────────────────────
   print('\n--- Creating a post ---');
   final created = await api.posts.create(
-    title: 'Lucky Dart is awesome',
+    title: 'Lucky Dart is great',
     content: 'Structured API calls without the boilerplate.',
     userId: 1,
   );
-  print('Created: ${created.json()}');
   print('Status: ${created.statusCode}');
+  print('Created: ${created.json()}');
 
-  // ── Error handling ───────────────────────────────────────────────────────────
-  print('\n--- Error handling ---');
-  final silentConnector = JsonPlaceholderConnector();
-  // throwOnError defaults to true, so 404 throws NotFoundException:
+  // ── Error handling ────────────────────────────────────────────────────────────
+  print('\n--- Error handling (throwOnError=true by default) ---');
   try {
-    await silentConnector.send(GetPostRequest(99999));
+    await api.posts.get(99999); // 404 on jsonplaceholder
   } on NotFoundException catch (e) {
-    print('Not found: ${e.message}');
+    print('Caught NotFoundException: ${e.message}');
   } on LuckyException catch (e) {
-    print('HTTP ${e.statusCode}: ${e.message}');
+    print('Caught HTTP ${e.statusCode}: ${e.message}');
   }
-
-  // ── Response helpers ─────────────────────────────────────────────────────────
-  print('\n--- Response helpers ---');
-  final r = await silentConnector.send(GetPostRequest(1));
-  print('isSuccessful: ${r.isSuccessful}');
-  print('isJson: ${r.isJson}');
-  print('statusCode: ${r.statusCode}');
-
-  // Custom transformer
-  final title = r.as((res) => res.json()['title'] as String);
-  print('title via as(): $title');
 }

@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.2] - 2026-02-19
+
+### Fixed
+
+- Simplify example: single connector, linear flow, no redundant class
+
 ## [1.0.1] - 2026-02-19
 
 ### Fixed
