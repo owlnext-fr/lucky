@@ -1,5 +1,15 @@
-/// Lucky Dart — A framework for building elegant and maintainable
-/// API integrations in Dart/Flutter.
+/// Lucky Dart — single public entry point for the `lucky_dart` package.
+///
+/// Import only this file in your application code:
+///
+/// ```dart
+/// import 'package:lucky_dart/lucky_dart.dart';
+/// ```
+///
+/// This library re-exports every public class from the core layer, body
+/// mixins, authentication strategies, exception hierarchy, and interceptors.
+/// All internal implementation files are kept private; consumers should never
+/// import them directly.
 library lucky_dart;
 
 // Core
