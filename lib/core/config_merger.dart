@@ -7,6 +7,8 @@ import 'package:dio/dio.dart';
 /// the [Connector] value. [ConfigMerger] is used internally by
 /// [Connector.send] and is not normally called directly by application code.
 class ConfigMerger {
+  /// This class exposes only static helpers and is not meant to be instantiated.
+  const ConfigMerger._();
   /// Merges [connector] headers with [request] headers, request taking priority.
   ///
   /// Returns a new map containing all entries from [connector] first, then all

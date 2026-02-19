@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.1] - 2026-02-19
+
+### Fixed
+
+- Add `example/lucky_dart_example.dart` for pub.dev scoring
+- Document implicit constructors on `Authenticator` and `ConfigMerger`
+- Fix repository URL in `pubspec.yaml` (owlnext-fr/lucky)
+
+
+
 All notable changes to Lucky Dart will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),

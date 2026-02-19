@@ -18,6 +18,8 @@ import 'package:dio/dio.dart';
 /// }
 /// ```
 abstract class Authenticator {
+  /// Creates an [Authenticator].
+  const Authenticator();
   /// Applies authentication credentials to the outgoing request [options].
   ///
   /// Implementations mutate [options] in place — for example by adding an
