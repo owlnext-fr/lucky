@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'response.dart';
 import 'request.dart';
 import 'config_merger.dart';
+import '../auth/authenticator.dart';
 import '../interceptors/logging_interceptor.dart';
 import '../interceptors/debug_interceptor.dart';
 import '../exceptions/lucky_exception.dart';
@@ -44,6 +45,32 @@ abstract class Connector {
   /// Individual requests can override specific option fields via
   /// [Request.buildOptions].
   Options? defaultOptions() => null;
+
+  // === Authentication ===
+
+  /// The authenticator applied to all outgoing requests, or `null` for none.
+  ///
+  /// Override this getter to supply an [Authenticator]. Because it is
+  /// re-evaluated on every [send] call, you can change authentication at
+  /// runtime by pointing it at a mutable field—useful for setting a token
+  /// after a successful login:
+  ///
+  /// ```dart
+  /// class ApiConnector extends Connector {
+  ///   Authenticator? _auth;
+  ///   void setToken(String token) => _auth = TokenAuthenticator(token);
+  ///
+  ///   @override
+  ///   Authenticator? get authenticator => _auth;
+  /// }
+  /// ```
+  Authenticator? get authenticator => null;
+
+  /// Whether authentication is enabled at the connector level. Defaults to `true`.
+  ///
+  /// When `false`, [authenticator] is not applied unless an individual request
+  /// explicitly overrides this by setting [Request.useAuth] = `true`.
+  bool get useAuth => true;
 
   // === Logging ===
 
@@ -178,6 +205,13 @@ abstract class Connector {
       options.extra ??= {};
       options.extra!['logRequest'] = request.logRequest;
       options.extra!['logResponse'] = request.logResponse;
+
+      // 4.5. Apply the authenticator when auth is enabled for this request.
+      final effectiveUseAuth =
+          ConfigMerger.resolveUseAuth(useAuth, request.useAuth);
+      if (effectiveUseAuth && authenticator != null) {
+        authenticator!.apply(options);
+      }
 
       // 5. Resolve the body, awaiting it if it is a Future (e.g. multipart).
       final body = await _resolveBody(request);
