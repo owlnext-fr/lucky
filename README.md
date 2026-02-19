@@ -460,6 +460,9 @@ class MyConnector extends Connector {
 class ApiConnector extends Connector {
   Authenticator? _auth;
 
+  // Public setter so callers in other files can update auth at runtime
+  set authenticatorOverride(Authenticator? auth) => _auth = auth;
+
   @override
   Authenticator? get authenticator => _auth;
 
@@ -474,8 +477,8 @@ final api = ApiConnector();
 final login = await api.send(LoginRequest(email: 'user@example.com', password: 'secret'));
 final token = login.json()['token'] as String;
 
-// Set token for all subsequent requests
-api._auth = TokenAuthenticator(token);
+// Set token for all subsequent requests via the public setter
+api.authenticatorOverride = TokenAuthenticator(token);
 
 final profile = await api.send(GetProfileRequest()); // now authenticated
 ```
