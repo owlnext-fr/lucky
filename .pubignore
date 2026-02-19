@@ -1,0 +1,3 @@
+# Internal files — not needed by package consumers
+CLAUDE.md
+docs/
