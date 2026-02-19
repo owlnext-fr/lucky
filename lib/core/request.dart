@@ -1,36 +1,63 @@
 import 'package:dio/dio.dart';
 
+/// Abstract base class for a single HTTP request.
+///
+/// Subclass [Request] once per API endpoint. At minimum, implement [method]
+/// and [resolveEndpoint]. Override the optional hook methods to supply
+/// headers, query parameters, a body, or custom Dio options. Body mixins
+/// (e.g. `HasJsonBody`, `HasFormBody`) override [body] and [buildOptions]
+/// automatically.
 abstract class Request {
-  // === Obligatoires ===
+  // === Required overrides ===
 
-  /// Methode HTTP (GET, POST, PUT, DELETE, PATCH, etc.)
+  /// The HTTP method for this request (e.g. `'GET'`, `'POST'`, `'PUT'`).
   String get method;
 
-  /// Endpoint relatif (sera combine avec baseUrl du Connector)
+  /// Returns the endpoint path relative to the connector's base URL.
+  ///
+  /// Example: returning `'/users/42'` combined with a base URL of
+  /// `'https://api.example.com'` produces `'https://api.example.com/users/42'`.
   String resolveEndpoint();
 
-  // === Optionnels (override pour personnaliser) ===
+  // === Optional overrides ===
 
-  /// Headers specifiques a cette requete
+  /// Returns headers specific to this request, or `null` for none.
+  ///
+  /// These are merged on top of the connector's [Connector.defaultHeaders],
+  /// with request values taking priority.
   Map<String, String>? headers() => null;
 
-  /// Query parameters specifiques a cette requete
+  /// Returns query parameters specific to this request, or `null` for none.
+  ///
+  /// These are merged on top of the connector's [Connector.defaultQuery],
+  /// with request values taking priority.
   Map<String, dynamic>? queryParameters() => null;
 
-  /// Body de la requete.
-  /// Peut retourner : Map, FormData, String, Stream, Future<FormData>, null.
-  /// Les mixins (HasJsonBody, HasFormBody, etc.) override cette methode.
+  /// Returns the request body, or `null` for requests without a body.
+  ///
+  /// Accepted return types: [Map], [FormData], [String], a [Stream], a
+  /// `Future<FormData>`, or `null`. Body mixins override this method and set
+  /// the appropriate `Content-Type` header automatically.
   dynamic body() => null;
 
-  /// Options Dio personnalisees.
-  /// Les mixins enrichissent cette methode pour ajouter Content-Type, etc.
+  /// Returns Dio [Options] for this request.
+  ///
+  /// Defaults to an [Options] instance carrying only the HTTP [method]. Body
+  /// mixins call `super.buildOptions()` and enrich the result with a
+  /// `Content-Type` header before returning.
   Options? buildOptions() => Options(method: method);
 
-  // === Controle du logging ===
+  // === Logging control ===
 
-  /// Active/desactive le logging de cette requete (active par defaut)
+  /// Whether the outgoing request should be passed to the logging interceptor.
+  ///
+  /// Defaults to `true`. Set to `false` to suppress logging for this
+  /// particular request (e.g. for requests carrying sensitive credentials).
   bool get logRequest => true;
 
-  /// Active/desactive le logging de la reponse (active par defaut)
+  /// Whether the incoming response should be passed to the logging interceptor.
+  ///
+  /// Defaults to `true`. Set to `false` to suppress response logging for
+  /// this particular request.
   bool get logResponse => true;
 }
