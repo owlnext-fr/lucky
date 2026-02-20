@@ -65,4 +65,16 @@ void main() {
     test('errors can be null',
         () => expect(ValidationException('x').errors, isNull));
   });
+
+  group('LuckyThrottleException', () {
+    test('is LuckyException',
+        () => expect(LuckyThrottleException('x'), isA<LuckyException>()));
+    test('statusCode is null',
+        () => expect(LuckyThrottleException('x').statusCode, isNull));
+    test('toString contains LuckyThrottleException', () =>
+        expect(LuckyThrottleException('rate').toString(),
+            contains('LuckyThrottleException')));
+    test('message is stored',
+        () => expect(LuckyThrottleException('rate').message, equals('rate')));
+  });
 }
