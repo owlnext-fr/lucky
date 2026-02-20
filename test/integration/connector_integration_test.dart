@@ -435,10 +435,9 @@ void main() {
       expect(r.statusCode, 503);
     });
 
-    test('does not retry 404 (not in retryOnStatusCodes)', () async {
-      // Use default connector — throwOnError=true, no retryPolicy
+    test('does not retry 404', () async {
       await expectLater(
-        connector.send(_Get('/404')),
+        connector.send(_Get('/notfound')),
         throwsA(isA<NotFoundException>()),
       );
     });
