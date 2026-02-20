@@ -2,17 +2,14 @@ import 'dart:math';
 import 'package:test/test.dart';
 import 'package:dio/dio.dart';
 import 'package:lucky_dart/lucky_dart.dart';
-import 'package:lucky_dart/policies/linear_backoff_retry_policy.dart';
-import 'package:lucky_dart/policies/immediate_retry_policy.dart';
-import 'package:lucky_dart/policies/jitter_strategy.dart';
-import 'package:lucky_dart/policies/jittered_retry_policy.dart';
 
 Response<dynamic> _makeResponse(int statusCode) => Response(
       requestOptions: RequestOptions(path: '/test'),
       statusCode: statusCode,
     );
 
-LuckyResponse _lucky(int statusCode) => LuckyResponse(_makeResponse(statusCode));
+LuckyResponse _lucky(int statusCode) =>
+    LuckyResponse(_makeResponse(statusCode));
 
 void main() {
   group('JitteredRetryPolicy — delegation', () {
@@ -26,8 +23,8 @@ void main() {
       strategy: JitterStrategy.none,
     );
 
-    test('maxAttempts delegated to inner', () =>
-        expect(policy.maxAttempts, equals(5)));
+    test('maxAttempts delegated to inner',
+        () => expect(policy.maxAttempts, equals(5)));
 
     test('shouldRetryOnResponse delegated to inner', () {
       expect(policy.shouldRetryOnResponse(_lucky(503), 1), isTrue);
@@ -35,10 +32,10 @@ void main() {
     });
 
     test('shouldRetryOnException delegated to inner', () {
-      expect(policy.shouldRetryOnException(
-          ConnectionException('refused'), 1), isTrue);
-      expect(policy.shouldRetryOnException(
-          NotFoundException('nope'), 1), isFalse);
+      expect(policy.shouldRetryOnException(ConnectionException('refused'), 1),
+          isTrue);
+      expect(
+          policy.shouldRetryOnException(NotFoundException('nope'), 1), isFalse);
     });
   });
 
@@ -82,7 +79,8 @@ void main() {
         maxJitter: Duration(seconds: 5),
         strategy: JitterStrategy.full,
       );
-      final delays = List.generate(10, (_) => policy.delayFor(1).inMilliseconds);
+      final delays =
+          List.generate(10, (_) => policy.delayFor(1).inMilliseconds);
       expect(delays.every((d) => d == delays.first), isFalse);
     });
 
@@ -140,13 +138,14 @@ void main() {
   });
 
   group('JitteredRetryPolicy — implements RetryPolicy', () {
-    test('is a RetryPolicy', () =>
-        expect(
-          JitteredRetryPolicy(
-            inner: const LinearBackoffRetryPolicy(),
-            maxJitter: Duration(seconds: 1),
-          ),
-          isA<RetryPolicy>(),
-        ));
+    test(
+        'is a RetryPolicy',
+        () => expect(
+              JitteredRetryPolicy(
+                inner: const LinearBackoffRetryPolicy(),
+                maxJitter: Duration(seconds: 1),
+              ),
+              isA<RetryPolicy>(),
+            ));
   });
 }

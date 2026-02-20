@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.3.0] - 2026-02-20
+
+### Added
+
+- `JitterStrategy` enum (`none`, `full`, `equal`) — additive jitter strategies to
+  desynchronise concurrent retries and prevent thundering herd
+- `JitteredRetryPolicy` decorator — wraps any `RetryPolicy` and adds bounded additive
+  jitter via `maxJitter`; `Random` is injectable for deterministic tests; works with
+  all built-in and custom retry policies
+- `LinearBackoffRetryPolicy` — retries with a constant delay between attempts; useful
+  when recovery time is predictable
+- `ImmediateRetryPolicy` — retries without any delay; for transient network glitches
+  expected to resolve within milliseconds
+- `TokenBucketThrottlePolicy` — token bucket algorithm with configurable `capacity`,
+  `refillRate`, and optional `maxWaitTime`; allows controlled bursts unlike the strict
+  sliding-window `RateLimitThrottlePolicy`
+- `ConcurrencyThrottlePolicy` — limits simultaneous in-flight requests via a semaphore;
+  waiters served in FIFO order; supports optional `maxWaitTime`
+
+### Changed
+
+- `ThrottlePolicy` interface gains a `release()` method with a default no-op
+  implementation — existing custom `ThrottlePolicy` subclasses are unaffected
+- `Connector.send()` now calls `throttlePolicy?.release()` in a `try/finally` block
+  inside the retry loop, so every attempt properly releases its slot
+
 ## [1.2.0] - 2026-02-20
 
 ### Added

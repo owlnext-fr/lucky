@@ -5,11 +5,12 @@ import 'package:lucky_dart/exceptions/lucky_throttle_exception.dart';
 
 void main() {
   group('TokenBucketThrottlePolicy', () {
-    test('implements ThrottlePolicy', () =>
-        expect(
-          TokenBucketThrottlePolicy(capacity: 5, refillRate: 1.0),
-          isA<ThrottlePolicy>(),
-        ));
+    test(
+        'implements ThrottlePolicy',
+        () => expect(
+              TokenBucketThrottlePolicy(capacity: 5, refillRate: 1.0),
+              isA<ThrottlePolicy>(),
+            ));
 
     test('acquire() within capacity completes immediately', () async {
       final policy = TokenBucketThrottlePolicy(capacity: 3, refillRate: 1.0);

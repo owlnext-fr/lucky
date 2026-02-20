@@ -6,11 +6,12 @@ import 'package:lucky_dart/exceptions/lucky_throttle_exception.dart';
 
 void main() {
   group('ConcurrencyThrottlePolicy', () {
-    test('implements ThrottlePolicy', () =>
-        expect(
-          ConcurrencyThrottlePolicy(maxConcurrent: 3),
-          isA<ThrottlePolicy>(),
-        ));
+    test(
+        'implements ThrottlePolicy',
+        () => expect(
+              ConcurrencyThrottlePolicy(maxConcurrent: 3),
+              isA<ThrottlePolicy>(),
+            ));
 
     test('acquire() under maxConcurrent completes immediately', () async {
       final policy = ConcurrencyThrottlePolicy(maxConcurrent: 3);
