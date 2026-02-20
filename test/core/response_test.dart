@@ -123,9 +123,13 @@ void main() {
       final name = r.as((res) => res.json()['name'] as String);
       expect(name, equals('Alice'));
     });
+    test('bytes() returns List<int>', () {
+      final r = LuckyResponse(makeResponse(statusCode: 200, data: [1, 2, 3]));
+      expect(r.bytes(), equals([1, 2, 3]));
+    });
   });
 
-  group('LuckyResponse.parsing helpers — erreurs de type', () {
+  group('LuckyResponse.parsing helpers — type errors', () {
     test('json() throws LuckyParseException when data is not a Map', () {
       final r = LuckyResponse(makeResponse(statusCode: 200, data: 'not a map'));
       expect(
