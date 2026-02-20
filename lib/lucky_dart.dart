@@ -51,3 +51,5 @@ export 'interceptors/debug_interceptor.dart';
 // Policies
 export 'policies/retry_policy.dart';
 export 'policies/throttle_policy.dart';
+export 'policies/exponential_backoff_retry_policy.dart';
+export 'policies/rate_limit_throttle_policy.dart';

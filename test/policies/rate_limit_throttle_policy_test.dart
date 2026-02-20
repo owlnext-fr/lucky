@@ -1,6 +1,5 @@
 import 'package:test/test.dart';
 import 'package:lucky_dart/lucky_dart.dart';
-import 'package:lucky_dart/policies/rate_limit_throttle_policy.dart';
 
 void main() {
   group('RateLimitThrottlePolicy', () {
