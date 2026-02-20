@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../core/typedefs.dart';
 
 /// Dio interceptor that emits structured, verbose debug information through a
 /// user-supplied callback.
@@ -27,17 +28,7 @@ import 'package:dio/dio.dart';
 /// );
 /// ```
 class DebugInterceptor extends Interceptor {
-  /// Callback invoked each time the interceptor emits a debug event.
-  ///
-  /// - [event]: one of `'request'`, `'response'`, or `'error'`.
-  /// - [message]: a short human-readable summary (e.g. `'GET https://…'`).
-  /// - [data]: a structured map of all relevant fields for the event, such as
-  ///   headers, body, status code, timeouts, and stack traces.
-  final void Function({
-    required String event,
-    String? message,
-    Map<String, dynamic>? data,
-  }) onDebug;
+  final LuckyDebugCallback onDebug;
 
   /// Creates a [DebugInterceptor] with the required [onDebug] callback.
   DebugInterceptor({required this.onDebug});

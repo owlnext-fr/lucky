@@ -17,6 +17,7 @@ export 'core/connector.dart';
 export 'core/request.dart';
 export 'core/response.dart';
 export 'core/config_merger.dart';
+export 'core/typedefs.dart';
 
 // Mixins
 export 'mixins/has_json_body.dart';

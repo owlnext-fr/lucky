@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../core/typedefs.dart';
 
 /// Dio interceptor that emits human-readable log lines through a user-supplied
 /// callback.
@@ -25,18 +26,7 @@ import 'package:dio/dio.dart';
 /// );
 /// ```
 class LoggingInterceptor extends Interceptor {
-  /// Callback invoked each time the interceptor emits a log entry.
-  ///
-  /// - [message]: the formatted log text (method, URL, headers, body, etc.)
-  /// - [level]: severity string — `'debug'` for requests, `'info'` or
-  ///   `'error'` for responses depending on the status code, `'error'` for
-  ///   network errors.
-  /// - [context]: fixed tag `'Lucky'` that identifies the log source.
-  final void Function({
-    required String message,
-    String? level,
-    String? context,
-  }) onLog;
+  final LuckyLogCallback onLog;
 
   /// Creates a [LoggingInterceptor] with the required [onLog] callback.
   LoggingInterceptor({required this.onLog});

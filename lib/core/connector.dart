@@ -11,6 +11,7 @@ import '../exceptions/lucky_timeout_exception.dart';
 import '../exceptions/not_found_exception.dart';
 import '../exceptions/unauthorized_exception.dart';
 import '../exceptions/validation_exception.dart';
+import 'typedefs.dart';
 
 /// Abstract base class for an entire API integration.
 ///
@@ -86,11 +87,7 @@ abstract class Connector {
   /// (e.g. `print`, a `Logger` instance, or `Talker`). The interceptor
   /// is only added to Dio when [enableLogging] is `true` and this value
   /// is non-null.
-  void Function({
-    required String message,
-    String? level,
-    String? context,
-  })? get onLog => null;
+  LuckyLogCallback? get onLog => null;
 
   // === Debug ===
 
@@ -105,11 +102,7 @@ abstract class Connector {
   /// Provides structured event data including request/response details. Wire
   /// this to your own logger. The interceptor is only added to Dio when
   /// [debugMode] is `true` and this value is non-null.
-  void Function({
-    required String event,
-    String? message,
-    Map<String, dynamic>? data,
-  })? get onDebug => null;
+  LuckyDebugCallback? get onDebug => null;
 
   // === Error handling ===
 
