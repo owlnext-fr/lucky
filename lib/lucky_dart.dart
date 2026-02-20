@@ -47,3 +47,7 @@ export 'exceptions/validation_exception.dart';
 // Interceptors
 export 'interceptors/logging_interceptor.dart';
 export 'interceptors/debug_interceptor.dart';
+
+// Policies
+export 'policies/retry_policy.dart';
+export 'policies/throttle_policy.dart';
