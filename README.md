@@ -60,10 +60,15 @@ print(servers.jsonList());
 - [Retry](#retry)
   - [How retry works](#how-retry-works)
   - [ExponentialBackoffRetryPolicy](#exponentialbackoffretrrypolicy)
+  - [LinearBackoffRetryPolicy](#linearbackoffretrrypolicy)
+  - [ImmediateRetryPolicy](#immediateretrrypolicy)
+  - [Jitter](#jitter)
   - [Custom RetryPolicy](#custom-retrypolicy)
 - [Throttle](#throttle)
   - [How throttle works](#how-throttle-works)
   - [RateLimitThrottlePolicy](#ratelimitthrottlepolicy)
+  - [TokenBucketThrottlePolicy](#tokenbucketthrottlepolicy)
+  - [ConcurrencyThrottlePolicy](#concurrencythrottlepolicy)
 - [Combining retry and throttle](#combining-retry-and-throttle)
 - [Logging \& debug](#logging--debug)
 - [Custom interceptors](#custom-interceptors)
@@ -739,6 +744,67 @@ RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy(
 );
 ```
 
+### LinearBackoffRetryPolicy
+
+Délai constant entre chaque tentative. Utile quand le temps de récupération du serveur est connu et stable :
+
+```dart
+@override
+RetryPolicy? get retryPolicy => const LinearBackoffRetryPolicy(
+  maxAttempts: 4,
+  delay: Duration(seconds: 2), // toujours 2s entre chaque essai
+);
+```
+
+### ImmediateRetryPolicy
+
+Zéro délai, tentatives en rafale. Pour les erreurs vraiment transitoires (packet loss < 100ms) :
+
+```dart
+@override
+RetryPolicy? get retryPolicy => const ImmediateRetryPolicy(maxAttempts: 2);
+```
+
+> Préfère `ExponentialBackoffRetryPolicy` pour les erreurs 5xx afin de ne pas aggraver un serveur déjà sous pression.
+
+### Jitter
+
+`JitteredRetryPolicy` est un **décorateur** qui ajoute un bruit aléatoire **additif** au délai calculé par n'importe quelle policy. Il résout le *thundering herd problem* : sans jitter, des milliers de clients qui échouent simultanément retentent tous au même instant.
+
+```dart
+// Scraping : 10s de base + bruit 0–2s → requêtes entre 10s et 12s
+JitteredRetryPolicy(
+  inner: LinearBackoffRetryPolicy(delay: Duration(seconds: 10)),
+  maxJitter: Duration(seconds: 2),
+  strategy: JitterStrategy.full,  // [base, base + maxJitter]
+)
+
+// API cloud : backoff exponentiel avec jitter égal
+JitteredRetryPolicy(
+  inner: const ExponentialBackoffRetryPolicy(maxAttempts: 4),
+  maxJitter: Duration(milliseconds: 500),
+  strategy: JitterStrategy.equal, // [base + maxJitter/2, base + maxJitter]
+)
+```
+
+**Stratégies disponibles :**
+
+| Strategy | Formule | Exemple (base=10s, maxJitter=2s) |
+|---|---|---|
+| `none` | base inchangé | 10s |
+| `full` | base + random(0, maxJitter) | 10–12s |
+| `equal` | base + random(maxJitter/2, maxJitter) | 11–12s |
+
+Pour des tests déterministes, injecte un `Random` avec seed fixe :
+
+```dart
+JitteredRetryPolicy(
+  inner: const LinearBackoffRetryPolicy(),
+  maxJitter: Duration(seconds: 1),
+  random: Random(42), // seed fixe → délais reproductibles
+)
+```
+
 ### Custom RetryPolicy
 
 Implement `RetryPolicy` directly for full control:
@@ -836,6 +902,65 @@ try {
   // Rate limit exceeded and maxWaitTime was hit
   print('Too many requests: ${e.message}');
 }
+```
+
+### TokenBucketThrottlePolicy
+
+Permet des **bursts contrôlés** : les tokens s'accumulent pendant les périodes calmes et peuvent être consommés en rafale jusqu'à la capacité du bucket. C'est le modèle utilisé par GitHub, Stripe, et la plupart des APIs REST.
+
+```dart
+class MyConnector extends Connector {
+  // 10 req/s en régime normal, burst possible jusqu'à 20
+  final _throttle = TokenBucketThrottlePolicy(
+    capacity: 20,
+    refillRate: 10.0, // tokens rechargés par seconde
+  );
+
+  @override
+  ThrottlePolicy? get throttlePolicy => _throttle;
+}
+```
+
+Avec `maxWaitTime`, fail fast si le bucket est trop vide :
+
+```dart
+final _throttle = TokenBucketThrottlePolicy(
+  capacity: 5,
+  refillRate: 2.0,
+  maxWaitTime: Duration(milliseconds: 500),
+);
+```
+
+**Différence avec `RateLimitThrottlePolicy` :**
+
+| | RateLimitThrottlePolicy | TokenBucketThrottlePolicy |
+|---|---|---|
+| Modèle | Fenêtre glissante stricte | Token bucket |
+| Burst | ❌ Non | ✅ Oui (jusqu'à `capacity`) |
+| Fidélité aux APIs | Bonne | Excellente (GitHub, Stripe…) |
+
+### ConcurrencyThrottlePolicy
+
+Limite le nombre de requêtes **en vol simultanément**, indépendamment du débit. Utile pour les APIs qui throttlent sur la concurrence, les connexions HTTP/1.1, ou les environnements à ressources limitées.
+
+```dart
+class MyConnector extends Connector {
+  final _throttle = ConcurrencyThrottlePolicy(maxConcurrent: 3);
+
+  @override
+  ThrottlePolicy? get throttlePolicy => _throttle;
+}
+```
+
+Les requêtes en attente sont servies en ordre FIFO. `release()` est appelé automatiquement par `Connector.send()` après chaque tentative via `try/finally`.
+
+Avec `maxWaitTime` :
+
+```dart
+final _throttle = ConcurrencyThrottlePolicy(
+  maxConcurrent: 3,
+  maxWaitTime: Duration(seconds: 2), // throw si aucun slot disponible en 2s
+);
 ```
 
 ---
