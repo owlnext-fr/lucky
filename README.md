@@ -57,6 +57,14 @@ print(servers.jsonList());
   - [Parsing into a model with `as()`](#parsing-into-a-model-with-as)
 - [Error handling](#error-handling)
   - [Parse errors](#parse-errors)
+- [Retry](#retry)
+  - [How retry works](#how-retry-works)
+  - [ExponentialBackoffRetryPolicy](#exponentialbackoffretrrypolicy)
+  - [Custom RetryPolicy](#custom-retrypolicy)
+- [Throttle](#throttle)
+  - [How throttle works](#how-throttle-works)
+  - [RateLimitThrottlePolicy](#ratelimitthrottlepolicy)
+- [Combining retry and throttle](#combining-retry-and-throttle)
 - [Logging \& debug](#logging--debug)
 - [Custom interceptors](#custom-interceptors)
 - [Why Lucky?](#why-lucky)
@@ -655,6 +663,217 @@ if (r.isSuccessful) {
   // ...
 }
 ```
+
+---
+
+## Retry
+
+Lucky can automatically retry failed requests. Attach a `RetryPolicy` to your connector by overriding the `retryPolicy` getter.
+
+### How retry works
+
+Every time `send()` runs, it starts a `while` loop. On each iteration:
+
+1. The throttle policy runs (if configured) — see [Throttle](#throttle)
+2. The HTTP request is dispatched
+3. If the response status is in the retry set (e.g. 503), `shouldRetryOnResponse` returns `true` and the loop continues after a delay
+4. If a network exception is thrown (connection error, timeout), `shouldRetryOnException` returns `true` and the loop continues
+5. Once `maxAttempts` is reached or neither condition is met, the response (or exception) is returned normally
+
+```
+attempt 1  ──── 503 ──► shouldRetryOnResponse? yes ──► wait 500ms ──►
+attempt 2  ──── 503 ──► shouldRetryOnResponse? yes ──► wait 1000ms ──►
+attempt 3  ──── 503 ──► maxAttempts reached ──► return 503 response
+```
+
+`RetryPolicy` is **stateless** — it is a getter re-evaluated on every `send()` call, so `const` constructors work perfectly.
+
+### ExponentialBackoffRetryPolicy
+
+The built-in implementation retries with exponentially increasing delays, capped at `maxDelay`:
+
+```
+delay(n) = min(initialDelay × multiplier^(n-1), maxDelay)
+```
+
+With defaults (`initialDelay=500ms`, `multiplier=2`, `maxDelay=30s`):
+
+| Retry | Delay before |
+|---|---|
+| 1st | 500 ms |
+| 2nd | 1 000 ms |
+| 3rd | 2 000 ms |
+| 4th | 4 000 ms |
+| … | … (capped at 30 s) |
+
+**Default retry triggers:**
+
+| Condition | Retried? |
+|---|---|
+| HTTP 429, 500, 502, 503, 504 | ✅ Yes |
+| `ConnectionException` | ✅ Yes |
+| `LuckyTimeoutException` | ✅ Yes |
+| HTTP 400, 401, 404, 422 | ❌ No |
+
+```dart
+class MyConnector extends Connector {
+  @override
+  String resolveBaseUrl() => 'https://api.example.com';
+
+  // 4 total attempts (1 initial + 3 retries), start at 1s
+  @override
+  RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy(
+    maxAttempts: 4,
+    initialDelay: Duration(seconds: 1),
+  );
+}
+```
+
+Customise which status codes trigger a retry:
+
+```dart
+@override
+RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy(
+  maxAttempts: 3,
+  retryOnStatusCodes: {503, 504}, // only retry gateway errors
+);
+```
+
+### Custom RetryPolicy
+
+Implement `RetryPolicy` directly for full control:
+
+```dart
+class OnlyOn503RetryPolicy extends RetryPolicy {
+  const OnlyOn503RetryPolicy();
+
+  @override
+  int get maxAttempts => 5;
+
+  @override
+  bool shouldRetryOnResponse(LuckyResponse response, int attempt) =>
+      response.statusCode == 503;
+
+  @override
+  bool shouldRetryOnException(LuckyException exception, int attempt) => false;
+
+  @override
+  Duration delayFor(int attempt) => Duration(seconds: attempt); // 1s, 2s, 3s…
+}
+```
+
+> **Note:** `shouldRetryOnException` is also called when `throwOnError = true` causes Lucky to throw a typed exception (e.g. `NotFoundException` for a 404). Make sure your policy returns the expected value for both network-level and HTTP-level exceptions.
+
+---
+
+## Throttle
+
+Lucky can pace outgoing requests to respect API rate limits. Attach a `ThrottlePolicy` to your connector by overriding the `throttlePolicy` getter.
+
+### How throttle works
+
+`acquire()` is called **before every attempt**, including retries. It blocks until a request slot is available:
+
+```
+send() called
+  └─► throttlePolicy.acquire()   ← waits if rate limit exceeded
+       └─► HTTP request dispatched
+            └─► [retry? throttle runs again before next attempt]
+```
+
+If the computed wait time exceeds `maxWaitTime`, `acquire()` throws `LuckyThrottleException` immediately instead of waiting. This exception **is never retried**, even when a `RetryPolicy` is configured.
+
+`ThrottlePolicy` is **stateful** — it tracks recent request timestamps. You must store the instance in a field on the connector; recreating it in the getter loses all history:
+
+```dart
+// ❌ Broken — state is lost on every send() call
+@override
+ThrottlePolicy? get throttlePolicy => RateLimitThrottlePolicy(...);
+
+// ✅ Correct — single instance, state persists
+final _throttle = RateLimitThrottlePolicy(...);
+
+@override
+ThrottlePolicy? get throttlePolicy => _throttle;
+```
+
+### RateLimitThrottlePolicy
+
+The built-in implementation uses a **sliding window**: it records the timestamp of each `acquire()` call and evicts entries older than `windowDuration` before checking the slot count.
+
+```dart
+class WeatherConnector extends Connector {
+  // Max 10 requests per second
+  final _throttle = RateLimitThrottlePolicy(
+    maxRequests: 10,
+    windowDuration: Duration(seconds: 1),
+  );
+
+  @override
+  String resolveBaseUrl() => 'https://api.openweathermap.org';
+
+  @override
+  ThrottlePolicy? get throttlePolicy => _throttle;
+}
+```
+
+With `maxWaitTime`, requests that would wait too long fail fast instead of blocking:
+
+```dart
+final _throttle = RateLimitThrottlePolicy(
+  maxRequests: 5,
+  windowDuration: Duration(seconds: 1),
+  maxWaitTime: Duration(milliseconds: 200), // throw instead of waiting > 200ms
+);
+```
+
+Handle the exception:
+
+```dart
+try {
+  final r = await connector.send(MyRequest());
+} on LuckyThrottleException catch (e) {
+  // Rate limit exceeded and maxWaitTime was hit
+  print('Too many requests: ${e.message}');
+}
+```
+
+---
+
+## Combining retry and throttle
+
+Both policies can be active simultaneously on the same connector. The throttle always runs first — every retry attempt passes through `acquire()` before the request is sent:
+
+```dart
+class ApiConnector extends Connector {
+  // Throttle: max 5 requests/second, never wait more than 500ms
+  final _throttle = RateLimitThrottlePolicy(
+    maxRequests: 5,
+    windowDuration: Duration(seconds: 1),
+    maxWaitTime: Duration(milliseconds: 500),
+  );
+
+  @override
+  String resolveBaseUrl() => 'https://api.example.com';
+
+  @override
+  ThrottlePolicy? get throttlePolicy => _throttle;
+
+  // Retry: up to 3 attempts on 429/5xx and network errors
+  @override
+  RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy();
+}
+```
+
+**Interaction rules:**
+
+| Situation | What happens |
+|---|---|
+| 503 → retry → throttle allows slot | Request retried after throttle delay + backoff delay |
+| 503 → retry → throttle blocks > maxWaitTime | `LuckyThrottleException` thrown, **no further retry** |
+| `LuckyThrottleException` thrown | Always propagated immediately, retry loop never entered |
+
+The key invariant: a `LuckyThrottleException` is **never** passed to `shouldRetryOnException`. Once the throttle rejects a request, it's over.
 
 ---
 
