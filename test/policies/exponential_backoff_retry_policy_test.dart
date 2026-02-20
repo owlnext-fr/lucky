@@ -1,5 +1,6 @@
 import 'package:test/test.dart';
 import 'package:lucky_dart/lucky_dart.dart';
+import 'package:lucky_dart/policies/exponential_backoff_retry_policy.dart';
 import 'package:dio/dio.dart';
 
 Response<dynamic> _makeResponse(int statusCode) => Response(
