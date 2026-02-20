@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.1] - 2026-02-20
+
+### Fixed
+
+- Translate new policy sections in README to English
+
 ## [1.3.0] - 2026-02-20
 
 ### Added
