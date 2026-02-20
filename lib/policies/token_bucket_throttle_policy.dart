@@ -1,4 +1,3 @@
-import 'package:meta/meta.dart';
 import '../exceptions/lucky_throttle_exception.dart';
 import 'throttle_policy.dart';
 
@@ -50,7 +49,6 @@ class TokenBucketThrottlePolicy extends ThrottlePolicy {
   DateTime _lastRefill;
 
   /// The current token count. Exposed for testing only.
-  @visibleForTesting
   double get tokenCount => _tokens;
 
   @override
