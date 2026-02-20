@@ -1,7 +1,5 @@
 import 'package:test/test.dart';
-import 'package:lucky_dart/policies/token_bucket_throttle_policy.dart';
-import 'package:lucky_dart/policies/throttle_policy.dart';
-import 'package:lucky_dart/exceptions/lucky_throttle_exception.dart';
+import 'package:lucky_dart/lucky_dart.dart';
 
 void main() {
   group('TokenBucketThrottlePolicy', () {
@@ -87,6 +85,23 @@ void main() {
     test('release() is a no-op and does not throw', () {
       final policy = TokenBucketThrottlePolicy(capacity: 5, refillRate: 1.0);
       expect(() => policy.release(), returnsNormally);
+    });
+  });
+
+  group('TokenBucketThrottlePolicy — concurrent safety', () {
+    test('tokens never drop below zero under concurrent load', () async {
+      final policy = TokenBucketThrottlePolicy(
+        capacity: 1,
+        refillRate: 20.0,
+      );
+
+      await Future.wait(List.generate(5, (_) => policy.acquire()));
+
+      expect(
+        policy.tokenCount,
+        greaterThanOrEqualTo(-0.001),
+        reason: 'tokenCount dropped below zero — race condition detected',
+      );
     });
   });
 }

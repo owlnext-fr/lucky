@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart';
 import '../exceptions/lucky_throttle_exception.dart';
 import 'throttle_policy.dart';
 
@@ -48,28 +49,34 @@ class TokenBucketThrottlePolicy extends ThrottlePolicy {
   double _tokens;
   DateTime _lastRefill;
 
+  /// The current token count. Exposed for testing only.
+  @visibleForTesting
+  double get tokenCount => _tokens;
+
   @override
   Future<void> acquire() async {
-    _refill();
+    while (true) {
+      _refill();
 
-    if (_tokens >= 1.0) {
-      _tokens -= 1.0;
-      return;
+      if (_tokens >= 1.0) {
+        _tokens -= 1.0;
+        return;
+      }
+
+      final waitSeconds = (1.0 - _tokens) / refillRate;
+      final wait = Duration(microseconds: (waitSeconds * 1e6).round());
+
+      if (maxWaitTime != null && wait > maxWaitTime!) {
+        throw LuckyThrottleException(
+          'Token bucket empty — required wait ${wait.inMilliseconds}ms '
+          'exceeds maxWaitTime ${maxWaitTime!.inMilliseconds}ms',
+        );
+      }
+
+      await Future.delayed(wait);
+      // Loop back: re-check availability because another waiter may have
+      // consumed the refilled token while we were waiting.
     }
-
-    final waitSeconds = (1.0 - _tokens) / refillRate;
-    final wait = Duration(microseconds: (waitSeconds * 1e6).round());
-
-    if (maxWaitTime != null && wait > maxWaitTime!) {
-      throw LuckyThrottleException(
-        'Token bucket empty — required wait ${wait.inMilliseconds}ms '
-        'exceeds maxWaitTime ${maxWaitTime!.inMilliseconds}ms',
-      );
-    }
-
-    await Future.delayed(wait);
-    _refill();
-    _tokens -= 1.0;
   }
 
   void _refill() {
