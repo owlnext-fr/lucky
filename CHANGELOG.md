@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2] - 2026-02-20
+
+### Fixed
+
+- Race condition in `RateLimitThrottlePolicy.acquire()`: concurrent waiters could push `_timestamps.length` above `maxRequests`. Fixed by replacing the single-pass post-await block with a `while(true)` re-check loop.
+- Race condition in `TokenBucketThrottlePolicy.acquire()`: concurrent waiters could drive `_tokens` below zero. Fixed with the same `while(true)` pattern.
+
 ## [1.3.1] - 2026-02-20
 
 ### Fixed
