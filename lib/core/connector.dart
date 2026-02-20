@@ -312,6 +312,13 @@ abstract class Connector {
           continue;
         }
         throw converted;
+      } finally {
+        // Release the slot after every attempt, success or failure.
+        // No-op for all policies except ConcurrencyThrottlePolicy.
+        // Note: with retry, `continue` inside the try block also triggers
+        // this finally before the next iteration — each attempt releases
+        // its own slot.
+        throttlePolicy?.release();
       }
     }
   }
