@@ -746,40 +746,40 @@ RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy(
 
 ### LinearBackoffRetryPolicy
 
-Délai constant entre chaque tentative. Utile quand le temps de récupération du serveur est connu et stable :
+Waits the same fixed delay between every retry. Use this when the downstream service has a known, stable recovery time:
 
 ```dart
 @override
 RetryPolicy? get retryPolicy => const LinearBackoffRetryPolicy(
   maxAttempts: 4,
-  delay: Duration(seconds: 2), // toujours 2s entre chaque essai
+  delay: Duration(seconds: 2), // always 2s between attempts
 );
 ```
 
 ### ImmediateRetryPolicy
 
-Zéro délai, tentatives en rafale. Pour les erreurs vraiment transitoires (packet loss < 100ms) :
+Retries with no delay at all. For truly transient errors expected to resolve within milliseconds (packet loss, brief DNS hiccup):
 
 ```dart
 @override
 RetryPolicy? get retryPolicy => const ImmediateRetryPolicy(maxAttempts: 2);
 ```
 
-> Préfère `ExponentialBackoffRetryPolicy` pour les erreurs 5xx afin de ne pas aggraver un serveur déjà sous pression.
+> Prefer `ExponentialBackoffRetryPolicy` for 5xx errors to avoid hammering an already struggling service.
 
 ### Jitter
 
-`JitteredRetryPolicy` est un **décorateur** qui ajoute un bruit aléatoire **additif** au délai calculé par n'importe quelle policy. Il résout le *thundering herd problem* : sans jitter, des milliers de clients qui échouent simultanément retentent tous au même instant.
+`JitteredRetryPolicy` is a **decorator** that adds a bounded random delay on top of any retry policy. It solves the *thundering herd problem*: without jitter, clients failing simultaneously all retry at the same instant and amplify the outage.
 
 ```dart
-// Scraping : 10s de base + bruit 0–2s → requêtes entre 10s et 12s
+// Scraping: 10s base + 0–2s noise → requests fire between 10s and 12s
 JitteredRetryPolicy(
   inner: LinearBackoffRetryPolicy(delay: Duration(seconds: 10)),
   maxJitter: Duration(seconds: 2),
   strategy: JitterStrategy.full,  // [base, base + maxJitter]
 )
 
-// API cloud : backoff exponentiel avec jitter égal
+// Cloud API: exponential backoff with equal jitter
 JitteredRetryPolicy(
   inner: const ExponentialBackoffRetryPolicy(maxAttempts: 4),
   maxJitter: Duration(milliseconds: 500),
@@ -787,21 +787,23 @@ JitteredRetryPolicy(
 )
 ```
 
-**Stratégies disponibles :**
+The jitter is always **additive** — the base delay from the inner policy is preserved and the noise is added on top.
 
-| Strategy | Formule | Exemple (base=10s, maxJitter=2s) |
+**Available strategies:**
+
+| Strategy | Formula | Example (base=10s, maxJitter=2s) |
 |---|---|---|
-| `none` | base inchangé | 10s |
+| `none` | base unchanged | 10s |
 | `full` | base + random(0, maxJitter) | 10–12s |
 | `equal` | base + random(maxJitter/2, maxJitter) | 11–12s |
 
-Pour des tests déterministes, injecte un `Random` avec seed fixe :
+For deterministic tests, inject a seeded `Random`:
 
 ```dart
 JitteredRetryPolicy(
   inner: const LinearBackoffRetryPolicy(),
   maxJitter: Duration(seconds: 1),
-  random: Random(42), // seed fixe → délais reproductibles
+  random: Random(42), // fixed seed → reproducible delays
 )
 ```
 
@@ -906,14 +908,14 @@ try {
 
 ### TokenBucketThrottlePolicy
 
-Permet des **bursts contrôlés** : les tokens s'accumulent pendant les périodes calmes et peuvent être consommés en rafale jusqu'à la capacité du bucket. C'est le modèle utilisé par GitHub, Stripe, et la plupart des APIs REST.
+Allows **controlled bursts**: tokens accumulate during periods of inactivity and can be consumed rapidly up to the bucket capacity. This is the model used by GitHub, Stripe, and most REST APIs, making it the most faithful client-side implementation of their limits.
 
 ```dart
 class MyConnector extends Connector {
-  // 10 req/s en régime normal, burst possible jusqu'à 20
+  // 10 req/s sustained, burst up to 20
   final _throttle = TokenBucketThrottlePolicy(
     capacity: 20,
-    refillRate: 10.0, // tokens rechargés par seconde
+    refillRate: 10.0, // tokens refilled per second
   );
 
   @override
@@ -921,7 +923,7 @@ class MyConnector extends Connector {
 }
 ```
 
-Avec `maxWaitTime`, fail fast si le bucket est trop vide :
+With `maxWaitTime`, fail fast instead of blocking when the bucket is too empty:
 
 ```dart
 final _throttle = TokenBucketThrottlePolicy(
@@ -931,17 +933,17 @@ final _throttle = TokenBucketThrottlePolicy(
 );
 ```
 
-**Différence avec `RateLimitThrottlePolicy` :**
+**Comparison with `RateLimitThrottlePolicy`:**
 
 | | RateLimitThrottlePolicy | TokenBucketThrottlePolicy |
 |---|---|---|
-| Modèle | Fenêtre glissante stricte | Token bucket |
-| Burst | ❌ Non | ✅ Oui (jusqu'à `capacity`) |
-| Fidélité aux APIs | Bonne | Excellente (GitHub, Stripe…) |
+| Model | Strict sliding window | Token bucket |
+| Burst | ❌ No | ✅ Yes (up to `capacity`) |
+| API fidelity | Good | Excellent (GitHub, Stripe…) |
 
 ### ConcurrencyThrottlePolicy
 
-Limite le nombre de requêtes **en vol simultanément**, indépendamment du débit. Utile pour les APIs qui throttlent sur la concurrence, les connexions HTTP/1.1, ou les environnements à ressources limitées.
+Limits the number of requests **in flight simultaneously**, independently of throughput. Useful when the downstream API throttles on concurrency rather than rate, for HTTP/1.1 connections, or to cap parallel calls in resource-constrained environments.
 
 ```dart
 class MyConnector extends Connector {
@@ -952,14 +954,14 @@ class MyConnector extends Connector {
 }
 ```
 
-Les requêtes en attente sont servies en ordre FIFO. `release()` est appelé automatiquement par `Connector.send()` après chaque tentative via `try/finally`.
+Waiters are served in FIFO order. `release()` is called automatically by `Connector.send()` after every attempt via a `try/finally` block.
 
-Avec `maxWaitTime` :
+With `maxWaitTime`:
 
 ```dart
 final _throttle = ConcurrencyThrottlePolicy(
   maxConcurrent: 3,
-  maxWaitTime: Duration(seconds: 2), // throw si aucun slot disponible en 2s
+  maxWaitTime: Duration(seconds: 2), // throw if no slot available within 2s
 );
 ```
 
