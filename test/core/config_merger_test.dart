@@ -75,17 +75,17 @@ void main() {
   });
 
   group('ConfigMerger.resolveUseAuth', () {
-    test('null request inherits true connector', () =>
-        expect(ConfigMerger.resolveUseAuth(true, null), isTrue));
-    test('null request inherits false connector', () =>
-        expect(ConfigMerger.resolveUseAuth(false, null), isFalse));
-    test('request false disables auth', () =>
-        expect(ConfigMerger.resolveUseAuth(true, false), isFalse));
-    test('request true forces auth even when connector is false', () =>
-        expect(ConfigMerger.resolveUseAuth(false, true), isTrue));
-    test('both true', () =>
-        expect(ConfigMerger.resolveUseAuth(true, true), isTrue));
-    test('both false', () =>
-        expect(ConfigMerger.resolveUseAuth(false, false), isFalse));
+    test('null request inherits true connector',
+        () => expect(ConfigMerger.resolveUseAuth(true, null), isTrue));
+    test('null request inherits false connector',
+        () => expect(ConfigMerger.resolveUseAuth(false, null), isFalse));
+    test('request false disables auth',
+        () => expect(ConfigMerger.resolveUseAuth(true, false), isFalse));
+    test('request true forces auth even when connector is false',
+        () => expect(ConfigMerger.resolveUseAuth(false, true), isTrue));
+    test('both true',
+        () => expect(ConfigMerger.resolveUseAuth(true, true), isTrue));
+    test('both false',
+        () => expect(ConfigMerger.resolveUseAuth(false, false), isFalse));
   });
 }

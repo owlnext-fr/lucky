@@ -27,15 +27,19 @@ class JsonPlaceholderConnector extends Connector {
 // ─── 2. Requests ─────────────────────────────────────────────────────────────
 
 class GetPostsRequest extends Request {
-  @override String get method => 'GET';
-  @override String resolveEndpoint() => '/posts';
+  @override
+  String get method => 'GET';
+  @override
+  String resolveEndpoint() => '/posts';
 }
 
 class GetPostRequest extends Request {
   final int id;
   GetPostRequest(this.id);
-  @override String get method => 'GET';
-  @override String resolveEndpoint() => '/posts/$id';
+  @override
+  String get method => 'GET';
+  @override
+  String resolveEndpoint() => '/posts/$id';
 }
 
 class CreatePostRequest extends Request with HasJsonBody {
@@ -49,8 +53,10 @@ class CreatePostRequest extends Request with HasJsonBody {
     required this.userId,
   });
 
-  @override String get method => 'POST';
-  @override String resolveEndpoint() => '/posts';
+  @override
+  String get method => 'POST';
+  @override
+  String resolveEndpoint() => '/posts';
 
   @override
   Map<String, dynamic> jsonBody() => {

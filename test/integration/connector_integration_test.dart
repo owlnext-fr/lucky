@@ -308,7 +308,8 @@ void main() {
   });
 
   group('Authentication', () {
-    test('authenticator applies header when useAuth defaults to true', () async {
+    test('authenticator applies header when useAuth defaults to true',
+        () async {
       final c = _AuthConnector(
         'http://127.0.0.1:$_port',
         auth: TokenAuthenticator('secret'),

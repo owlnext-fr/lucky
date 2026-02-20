@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0] - 2026-02-20
+
+### Added
+
+- `LuckyLogCallback` and `LuckyDebugCallback` named typedefs exported from the package — use them to annotate your own callback variables instead of repeating the verbose inline function types
+- `LuckyParseException extends LuckyException` — thrown by response parsing helpers when the body cannot be cast to the expected type; exposes `cause` (the original `TypeError`) and a descriptive message (`"Expected Map<String, dynamic>, got String"`)
+
+### Changed
+
+- `LuckyResponse.json()`, `jsonList()`, `text()`, `bytes()` now throw `LuckyParseException` instead of a raw `TypeError` on type mismatch
+
 ## [1.0.2] - 2026-02-19
 
 ### Fixed

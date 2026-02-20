@@ -9,6 +9,7 @@ import 'package:dio/dio.dart';
 class ConfigMerger {
   /// This class exposes only static helpers and is not meant to be instantiated.
   const ConfigMerger._();
+
   /// Merges [connector] headers with [request] headers, request taking priority.
   ///
   /// Returns a new map containing all entries from [connector] first, then all
