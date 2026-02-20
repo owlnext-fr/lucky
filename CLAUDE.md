@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current Status
 
-**v1.0.0 implemented and fully documented.** 112 tests passing (unit + integration).
-Features completed: core layer, all body mixins, auth layer, interceptors, exceptions, pluggable per-request authentication.
+**v1.0.2 implemented and fully documented.** 117 tests passing (unit + integration).
+Features completed: core layer, all body mixins, auth layer, interceptors, exceptions, pluggable per-request authentication, named callback typedefs, secured response parsing helpers.
 
 ## Project Overview
 
@@ -99,8 +99,9 @@ Connector.send(request)
 
 - **`connector.dart`** — Abstract base for an entire API. Holds Dio singleton, base URL, default headers/query/options, logging/debug callbacks, and the `send()` method. Subclasses must implement `resolveBaseUrl()`.
 - **`request.dart`** — Abstract base for a single HTTP request. Subclasses implement `method`, `resolveEndpoint()`, and optionally `headers()`, `queryParameters()`, `body()`, `buildOptions()`.
-- **`response.dart`** — `LuckyResponse` wraps `dio.Response` with status helpers (`isSuccessful`, `isClientError`, etc.) and parsing helpers (`json()`, `jsonList()`, `text()`, `as<T>()`).
+- **`response.dart`** — `LuckyResponse` wraps `dio.Response` with status helpers (`isSuccessful`, `isClientError`, etc.) and parsing helpers (`json()`, `jsonList()`, `text()`, `bytes()`, `as<T>()`). All parsing helpers throw `LuckyParseException` on type mismatch.
 - **`config_merger.dart`** — Static helpers to merge Connector defaults with Request overrides (Request takes priority).
+- **`typedefs.dart`** — Named function types for callbacks: `LuckyLogCallback` (for `onLog`) and `LuckyDebugCallback` (for `onDebug`). Both are exported from the barrel file.
 
 ### Body mixins (`lib/mixins/`)
 
@@ -123,7 +124,9 @@ Both interceptors receive user-provided callbacks (Lucky has no built-in logging
 
 ### Exceptions (`lib/exceptions/`)
 
-Hierarchy: `LuckyException` (base) → `ConnectionException`, `LuckyTimeoutException`, `NotFoundException` (404), `UnauthorizedException` (401), `ValidationException` (422, includes `errors` map).
+Hierarchy: `LuckyException` (base) → `ConnectionException`, `LuckyTimeoutException`, `NotFoundException` (404), `UnauthorizedException` (401), `ValidationException` (422, includes `errors` map), `LuckyParseException` (client-side, no `statusCode`).
+
+`LuckyParseException` is thrown by `LuckyResponse` parsing helpers when a cast fails. It carries `cause: Object?` (the original `TypeError`) and is NOT an HTTP error — `statusCode` will be `null`.
 
 ### Entry point
 
@@ -138,6 +141,10 @@ Hierarchy: `LuckyException` (base) → `ConnectionException`, `LuckyTimeoutExcep
 **No logging dependency** — Users wire `onLog`/`onDebug` callbacks to their own logger (e.g. `print`, `logger`, `talker`). Interceptors are only added to Dio if both the flag (`enableLogging`/`debugMode`) AND the callback are non-null.
 
 **Pluggable auth** — `Connector.authenticator` is a getter re-evaluated on every `send()`, enabling runtime mutation (e.g. set token after login). Auth is applied via `ConfigMerger.resolveUseAuth(connectorUseAuth, request.useAuth)`.
+
+**Named callback typedefs** — `LuckyLogCallback` and `LuckyDebugCallback` are defined in `lib/core/typedefs.dart` and used by `Connector`, `LoggingInterceptor`, and `DebugInterceptor`. This eliminates repeated inline function types and lets users annotate their own callback variables.
+
+**Secured parsing helpers** — `json()`, `jsonList()`, `text()`, `bytes()` all wrap their cast in a `try/catch` that rethrows as `LuckyParseException(message, cause: e)`. The message includes the expected type and the actual `runtimeType`.
 
 ## Gotchas
 

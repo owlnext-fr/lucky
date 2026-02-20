@@ -56,6 +56,7 @@ print(servers.jsonList());
 - [Response helpers](#response-helpers)
   - [Parsing into a model with `as()`](#parsing-into-a-model-with-as)
 - [Error handling](#error-handling)
+  - [Parse errors](#parse-errors)
 - [Logging \& debug](#logging--debug)
 - [Custom interceptors](#custom-interceptors)
 - [Why Lucky?](#why-lucky)
@@ -545,7 +546,7 @@ r.isJson   // Content-Type contains application/json
 r.isXml    // Content-Type contains xml
 r.isHtml   // Content-Type contains text/html
 
-// Parsing
+// Parsing — throw LuckyParseException on type mismatch
 r.json()       // Map<String, dynamic>
 r.jsonList()   // List<dynamic>
 r.text()       // String
@@ -625,6 +626,21 @@ try {
 }
 ```
 
+### Parse errors
+
+The parsing helpers (`json()`, `jsonList()`, `text()`, `bytes()`) throw `LuckyParseException` when the response body is not the expected type. This is a client-side error (no HTTP status code), but it lives in the same `LuckyException` hierarchy:
+
+```dart
+try {
+  final user = response.json();
+} on LuckyParseException catch (e) {
+  print(e.message); // "Expected Map<String, dynamic>, got String"
+  print(e.cause);   // the original TypeError
+}
+```
+
+---
+
 **To handle status codes manually**, disable throwing:
 
 ```dart
@@ -652,22 +668,28 @@ class MyConnector extends Connector {
   bool get enableLogging => true;
 
   @override
-  void Function({required String message, String? level, String? context}) get onLog =>
-    ({required message, level, context}) {
-      // Wire to your favourite logger
-      print('[$level] $message');
-    };
+  LuckyLogCallback get onLog => ({required message, level, context}) {
+    // Wire to your favourite logger
+    print('[$level] $message');
+  };
 
   // More verbose structured output — use kDebugMode in Flutter, or true/false in Dart
   @override
   bool get debugMode => true;
 
   @override
-  void Function({required String event, String? message, Map<String, dynamic>? data}) get onDebug =>
-    ({required event, message, data}) {
-      print('DEBUG [$event] $message\n$data');
-    };
+  LuckyDebugCallback get onDebug => ({required event, message, data}) {
+    print('DEBUG [$event] $message\n$data');
+  };
 }
+```
+
+The `LuckyLogCallback` and `LuckyDebugCallback` typedefs are exported from the package, so you can use them to type your own callback variables:
+
+```dart
+final LuckyLogCallback myLogger = ({required message, level, context}) {
+  talker.log(message, logLevel: level);
+};
 ```
 
 To suppress logging for a specific request (e.g. one that carries credentials):
