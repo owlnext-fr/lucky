@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.2.0] - 2026-02-20
+
+### Added
+
+- `RetryPolicy` abstract interface — implement to control retry behaviour on failed requests
+- `ThrottlePolicy` abstract interface — implement to rate-limit outgoing requests
+- `ExponentialBackoffRetryPolicy` — concrete retry implementation with configurable `maxAttempts`, `initialDelay`, `multiplier`, `maxDelay`, and `retryOnStatusCodes`
+- `RateLimitThrottlePolicy` — concrete sliding-window throttle with configurable `maxRequests`, `windowDuration`, and optional `maxWaitTime`
+- `LuckyThrottleException extends LuckyException` — thrown when `maxWaitTime` is exceeded; never triggers a retry even when a `RetryPolicy` is configured
+- `Connector.retryPolicy` and `Connector.throttlePolicy` nullable getters — nil by default, re-evaluated on every `send()` call
+
+### Changed
+
+- `Connector.send()` rewritten as a `while` loop to support retry and throttle orchestration without changes to the Dio layer
+
 ## [1.1.0] - 2026-02-20
 
 ### Added

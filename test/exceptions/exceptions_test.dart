@@ -71,8 +71,9 @@ void main() {
         () => expect(LuckyThrottleException('x'), isA<LuckyException>()));
     test('statusCode is null',
         () => expect(LuckyThrottleException('x').statusCode, isNull));
-    test('toString contains LuckyThrottleException', () =>
-        expect(LuckyThrottleException('rate').toString(),
+    test(
+        'toString contains LuckyThrottleException',
+        () => expect(LuckyThrottleException('rate').toString(),
             contains('LuckyThrottleException')));
     test('message is stored',
         () => expect(LuckyThrottleException('rate').message, equals('rate')));
