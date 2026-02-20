@@ -129,7 +129,69 @@ class _GetForceAuth extends Request {
   bool? get useAuth => true;
 }
 
+class _FlakyConnector extends Connector {
+  final String _baseUrl;
+  _FlakyConnector(this._baseUrl);
+
+  @override
+  String resolveBaseUrl() => _baseUrl;
+
+  @override
+  bool get throwOnError => false;
+
+  @override
+  RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy(
+        maxAttempts: 3,
+        initialDelay: Duration(milliseconds: 10), // short for tests
+      );
+}
+
+class _ThrottledConnector extends Connector {
+  final String _baseUrl;
+  final _throttle = RateLimitThrottlePolicy(
+    maxRequests: 2,
+    windowDuration: Duration(milliseconds: 300),
+    maxWaitTime: Duration(milliseconds: 50),
+  );
+
+  _ThrottledConnector(this._baseUrl);
+
+  @override
+  String resolveBaseUrl() => _baseUrl;
+
+  @override
+  bool get throwOnError => false;
+
+  @override
+  ThrottlePolicy? get throttlePolicy => _throttle;
+}
+
+class _ConnectorWithBothPolicies extends Connector {
+  final String _baseUrl;
+  final ThrottlePolicy _throttle;
+
+  _ConnectorWithBothPolicies(this._baseUrl, {required ThrottlePolicy throttle})
+      : _throttle = throttle;
+
+  @override
+  String resolveBaseUrl() => _baseUrl;
+
+  @override
+  bool get throwOnError => false;
+
+  @override
+  ThrottlePolicy? get throttlePolicy => _throttle;
+
+  @override
+  RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy(
+        maxAttempts: 3,
+        initialDelay: Duration(milliseconds: 10),
+      );
+}
+
 // -- Mock server helpers ------------------------------------------------------
+
+int _flakyCount = 0;
 
 HttpServer? _server;
 int _port = 0;
@@ -196,7 +258,19 @@ void main() {
       'GET /protected': (r) async => await _json(r, 200, {
             'auth': r.headers.value('authorization'),
           }),
+      'GET /flaky': (r) async {
+        _flakyCount++;
+        if (_flakyCount < 3) {
+          await _json(r, 503, {'message': 'Service Unavailable'});
+        } else {
+          await _json(r, 200, {'ok': true});
+        }
+      },
+      'GET /always503': (r) async =>
+          await _json(r, 503, {'message': 'always down'}),
+      'GET /throttletest': (r) async => await _json(r, 200, {'ok': true}),
     });
+    _flakyCount = 0;
     connector = _TestConnector('http://127.0.0.1:$_port');
   });
 
@@ -342,6 +416,77 @@ void main() {
       final c = _AuthConnector('http://127.0.0.1:$_port');
       final r = await c.send(_Get('/protected'));
       expect(r.json()['auth'], isNull);
+    });
+  });
+
+  group('RetryPolicy', () {
+    test('retries on 503 and succeeds on 3rd attempt', () async {
+      final c = _FlakyConnector('http://127.0.0.1:$_port');
+      final r = await c.send(_Get('/flaky'));
+      expect(r.statusCode, 200);
+      expect(r.json()['ok'], isTrue);
+    });
+
+    test('gives up after maxAttempts and returns last response', () async {
+      // throwOnError=false so we get the response instead of an exception
+      final c = _FlakyConnector('http://127.0.0.1:$_port');
+      // /always503 never recovers — after 3 attempts returns the 503
+      final r = await c.send(_Get('/always503'));
+      expect(r.statusCode, 503);
+    });
+
+    test('does not retry 404 (not in retryOnStatusCodes)', () async {
+      // Use default connector — throwOnError=true, no retryPolicy
+      await expectLater(
+        connector.send(_Get('/404')),
+        throwsA(isA<NotFoundException>()),
+      );
+    });
+  });
+
+  group('ThrottlePolicy', () {
+    test('allows requests under the limit without delay', () async {
+      final c = _ThrottledConnector('http://127.0.0.1:$_port');
+      // 2 requests within the limit — both should succeed quickly
+      final r1 = await c.send(_Get('/throttletest'));
+      final r2 = await c.send(_Get('/throttletest'));
+      expect(r1.statusCode, 200);
+      expect(r2.statusCode, 200);
+    });
+
+    test('throws LuckyThrottleException when maxWaitTime exceeded', () async {
+      final c = _ThrottledConnector('http://127.0.0.1:$_port');
+      await c.send(_Get('/throttletest')); // slot 1
+      await c.send(_Get('/throttletest')); // slot 2 — window full
+
+      // 3rd request should exceed maxWaitTime=50ms and throw
+      await expectLater(
+        c.send(_Get('/throttletest')),
+        throwsA(isA<LuckyThrottleException>()),
+      );
+    });
+
+    test('LuckyThrottleException is not retried even with a RetryPolicy',
+        () async {
+      // Connector with both throttle (tight) and retry — throttle must win
+      final throttle = RateLimitThrottlePolicy(
+        maxRequests: 1,
+        windowDuration: Duration(milliseconds: 300),
+        maxWaitTime: Duration(milliseconds: 10),
+      );
+
+      final c = _ConnectorWithBothPolicies(
+        'http://127.0.0.1:$_port',
+        throttle: throttle,
+      );
+
+      await c.send(_Get('/throttletest')); // fills window
+
+      // Must throw LuckyThrottleException, not retry
+      await expectLater(
+        c.send(_Get('/throttletest')),
+        throwsA(isA<LuckyThrottleException>()),
+      );
     });
   });
 }

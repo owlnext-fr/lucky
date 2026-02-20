@@ -8,9 +8,12 @@ import '../interceptors/debug_interceptor.dart';
 import '../exceptions/lucky_exception.dart';
 import '../exceptions/connection_exception.dart';
 import '../exceptions/lucky_timeout_exception.dart';
+import '../exceptions/lucky_throttle_exception.dart';
 import '../exceptions/not_found_exception.dart';
 import '../exceptions/unauthorized_exception.dart';
 import '../exceptions/validation_exception.dart';
+import '../policies/retry_policy.dart';
+import '../policies/throttle_policy.dart';
 import 'typedefs.dart';
 
 /// Abstract base class for an entire API integration.
@@ -72,6 +75,42 @@ abstract class Connector {
   /// When `false`, [authenticator] is not applied unless an individual request
   /// explicitly overrides this by setting [Request.useAuth] = `true`.
   bool get useAuth => true;
+
+  // === Retry ===
+
+  /// The retry policy applied when a request fails, or `null` for no retry.
+  ///
+  /// Override to supply a [RetryPolicy]. Because this getter is re-evaluated
+  /// on every [send] call, you can change it at runtime.
+  ///
+  /// Implementations of [RetryPolicy] must be stateless — use `const`
+  /// constructors when possible:
+  ///
+  /// ```dart
+  /// @override
+  /// RetryPolicy? get retryPolicy => const ExponentialBackoffRetryPolicy();
+  /// ```
+  RetryPolicy? get retryPolicy => null;
+
+  // === Throttle ===
+
+  /// The throttle policy applied before every request attempt, or `null` for
+  /// no rate limiting.
+  ///
+  /// **Important:** [ThrottlePolicy] implementations are stateful. Store the
+  /// instance in a field on the connector — do not create it inside this
+  /// getter:
+  ///
+  /// ```dart
+  /// final _throttle = RateLimitThrottlePolicy(
+  ///   maxRequests: 10,
+  ///   windowDuration: Duration(seconds: 1),
+  /// );
+  ///
+  /// @override
+  /// ThrottlePolicy? get throttlePolicy => _throttle;
+  /// ```
+  ThrottlePolicy? get throttlePolicy => null;
 
   // === Logging ===
 
@@ -165,70 +204,108 @@ abstract class Connector {
 
   /// Sends [request] and returns the wrapped [LuckyResponse].
   ///
-  /// The method merges connector-level defaults with request-level overrides
-  /// using [ConfigMerger], resolves an optional async body, dispatches the
-  /// request via [dio], and—when [throwOnError] is `true`—throws an
-  /// appropriate [LuckyException] subclass for any non-2xx response.
+  /// The method applies the [throttlePolicy] before each attempt, merges
+  /// connector-level defaults with request-level overrides via [ConfigMerger],
+  /// resolves an optional async body, dispatches through [dio], and—when
+  /// [throwOnError] is `true`—throws a typed [LuckyException] for non-2xx
+  /// responses.
   ///
-  /// Network and timeout failures caught as [DioException] are converted to
-  /// [ConnectionException] or [LuckyTimeoutException] respectively.
+  /// When a [retryPolicy] is configured, failed attempts are transparently
+  /// retried according to the policy's rules. [LuckyThrottleException] is
+  /// never retried regardless of the [retryPolicy].
   Future<LuckyResponse> send(Request request) async {
-    try {
-      // 1. Merge headers (Connector defaults, then Request overrides).
-      final headers = ConfigMerger.mergeHeaders(
-        defaultHeaders(),
-        request.headers(),
-      );
+    int attempt = 0;
 
-      // 2. Merge query parameters.
-      final query = ConfigMerger.mergeQuery(
-        defaultQuery(),
-        request.queryParameters(),
-      );
+    while (true) {
+      attempt++;
 
-      // 3. Merge Dio options (body mixins enrich buildOptions before this).
-      final options = ConfigMerger.mergeOptions(
-        defaultOptions(),
-        request.buildOptions(),
-        request.method,
-        headers,
-      );
+      // 1. Throttle before every attempt (initial + retries).
+      await throttlePolicy?.acquire();
 
-      // 4. Store logging flags in extra so interceptors can inspect them.
-      options.extra ??= {};
-      options.extra!['logRequest'] = request.logRequest;
-      options.extra!['logResponse'] = request.logResponse;
+      try {
+        // 2. Merge headers (Connector defaults, then Request overrides).
+        final headers = ConfigMerger.mergeHeaders(
+          defaultHeaders(),
+          request.headers(),
+        );
 
-      // 5. Apply the authenticator when auth is enabled for this request.
-      final effectiveUseAuth =
-          ConfigMerger.resolveUseAuth(useAuth, request.useAuth);
-      if (effectiveUseAuth && authenticator != null) {
-        authenticator!.apply(options);
+        // 3. Merge query parameters.
+        final query = ConfigMerger.mergeQuery(
+          defaultQuery(),
+          request.queryParameters(),
+        );
+
+        // 4. Merge Dio options.
+        final options = ConfigMerger.mergeOptions(
+          defaultOptions(),
+          request.buildOptions(),
+          request.method,
+          headers,
+        );
+
+        // 5. Store logging flags in extra so interceptors can inspect them.
+        options.extra ??= {};
+        options.extra!['logRequest'] = request.logRequest;
+        options.extra!['logResponse'] = request.logResponse;
+
+        // 6. Apply the authenticator when auth is enabled for this request.
+        final effectiveUseAuth =
+            ConfigMerger.resolveUseAuth(useAuth, request.useAuth);
+        if (effectiveUseAuth && authenticator != null) {
+          authenticator!.apply(options);
+        }
+
+        // 7. Resolve the body, awaiting it if it is a Future (e.g. multipart).
+        final body = await _resolveBody(request);
+
+        // 8. Dispatch the request through Dio.
+        final response = await dio.request(
+          request.resolveEndpoint(),
+          queryParameters: query,
+          data: body,
+          options: options,
+        );
+
+        final luckyResponse = LuckyResponse(response);
+
+        // 9. Check if the retry policy wants another attempt on this response.
+        final rp = retryPolicy;
+        if (rp != null &&
+            attempt < rp.maxAttempts &&
+            rp.shouldRetryOnResponse(luckyResponse, attempt)) {
+          await Future.delayed(rp.delayFor(attempt));
+          continue;
+        }
+
+        // 10. Lucky—not Dio—is responsible for HTTP error handling.
+        if (throwOnError && !luckyResponse.isSuccessful) {
+          throw _buildException(luckyResponse);
+        }
+
+        return luckyResponse;
+      } on LuckyThrottleException {
+        // Throttle exceptions are never retried — propagate immediately.
+        rethrow;
+      } on LuckyException catch (e) {
+        final rp = retryPolicy;
+        if (rp != null &&
+            attempt < rp.maxAttempts &&
+            rp.shouldRetryOnException(e, attempt)) {
+          await Future.delayed(rp.delayFor(attempt));
+          continue;
+        }
+        rethrow;
+      } on DioException catch (e) {
+        final converted = _convertDioException(e);
+        final rp = retryPolicy;
+        if (rp != null &&
+            attempt < rp.maxAttempts &&
+            rp.shouldRetryOnException(converted, attempt)) {
+          await Future.delayed(rp.delayFor(attempt));
+          continue;
+        }
+        throw converted;
       }
-
-      // 6. Resolve the body, awaiting it if it is a Future (e.g. multipart).
-      final body = await _resolveBody(request);
-
-      // 7. Dispatch the request through Dio.
-      final response = await dio.request(
-        request.resolveEndpoint(),
-        queryParameters: query,
-        data: body,
-        options: options,
-      );
-
-      final luckyResponse = LuckyResponse(response);
-
-      // 8. Lucky—not Dio—is responsible for HTTP error handling.
-      if (throwOnError && !luckyResponse.isSuccessful) {
-        throw _buildException(luckyResponse);
-      }
-
-      return luckyResponse;
-    } on DioException catch (e) {
-      // Only network/timeout errors reach this block; HTTP errors are handled
-      // above because Dio is configured with validateStatus: (_) => true.
-      throw _convertDioException(e);
     }
   }
 
