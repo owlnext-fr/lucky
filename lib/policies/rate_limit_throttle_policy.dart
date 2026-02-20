@@ -44,28 +44,30 @@ class RateLimitThrottlePolicy extends ThrottlePolicy {
 
   @override
   Future<void> acquire() async {
-    _evict();
+    while (true) {
+      _evict();
 
-    if (_timestamps.length < maxRequests) {
-      _timestamps.add(DateTime.now());
-      return;
-    }
+      if (_timestamps.length < maxRequests) {
+        _timestamps.add(DateTime.now());
+        return;
+      }
 
-    final waitUntil = _timestamps.first.add(windowDuration);
-    final delay = waitUntil.difference(DateTime.now());
+      final waitUntil = _timestamps.first.add(windowDuration);
+      final delay = waitUntil.difference(DateTime.now());
 
-    if (delay > Duration.zero) {
+      if (delay <= Duration.zero) continue;
+
       if (maxWaitTime != null && delay > maxWaitTime!) {
         throw LuckyThrottleException(
           'Rate limit exceeded — required wait ${delay.inMilliseconds}ms '
           'exceeds maxWaitTime ${maxWaitTime!.inMilliseconds}ms',
         );
       }
-      await Future.delayed(delay);
-    }
 
-    _evict();
-    _timestamps.add(DateTime.now());
+      await Future.delayed(delay);
+      // Loop back: re-check availability because another waiter may have
+      // consumed the freed slot while we were waiting.
+    }
   }
 
   void _evict() {

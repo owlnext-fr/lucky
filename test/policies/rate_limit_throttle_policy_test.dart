@@ -65,4 +65,39 @@ void main() {
       await expectLater(policy.acquire(), completes);
     });
   });
+
+    group('RateLimitThrottlePolicy — concurrent safety', () {
+      test('never exceeds maxRequests under concurrent load', () async {
+        final policy = RateLimitThrottlePolicy(
+          maxRequests: 3,
+          windowDuration: Duration(milliseconds: 500),
+        );
+
+        final completedAt = <DateTime>[];
+
+        Future<void> task() async {
+          await policy.acquire();
+          completedAt.add(DateTime.now());
+        }
+
+        await Future.wait(List.generate(10, (_) => task()));
+
+        // Use a slightly smaller check window (450ms) to account for timer
+        // imprecision at the boundary. The policy enforces 500ms windows;
+        // checking 450ms proves no more than 3 requests land in any
+        // interior window.
+        for (final t in completedAt) {
+          final windowEnd = t.add(const Duration(milliseconds: 450));
+          final inWindow = completedAt
+              .where((t2) => !t2.isBefore(t) && !t2.isAfter(windowEnd))
+              .length;
+          expect(
+            inWindow,
+            lessThanOrEqualTo(3),
+            reason: 'More than maxRequests=3 acquires completed in a 450ms '
+                'window (policy window is 500ms)',
+          );
+        }
+      });
+    });
 }
