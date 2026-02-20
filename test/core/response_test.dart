@@ -124,4 +124,54 @@ void main() {
       expect(name, equals('Alice'));
     });
   });
+
+  group('LuckyResponse.parsing helpers — erreurs de type', () {
+    test('json() throws LuckyParseException when data is not a Map', () {
+      final r = LuckyResponse(makeResponse(statusCode: 200, data: 'not a map'));
+      expect(
+        () => r.json(),
+        throwsA(isA<LuckyParseException>().having(
+          (e) => e.cause,
+          'cause',
+          isNotNull,
+        )),
+      );
+    });
+
+    test('jsonList() throws LuckyParseException when data is not a List', () {
+      final r = LuckyResponse(makeResponse(statusCode: 200, data: {'k': 'v'}));
+      expect(
+        () => r.jsonList(),
+        throwsA(isA<LuckyParseException>().having(
+          (e) => e.cause,
+          'cause',
+          isNotNull,
+        )),
+      );
+    });
+
+    test('text() throws LuckyParseException when data is not a String', () {
+      final r = LuckyResponse(makeResponse(statusCode: 200, data: 42));
+      expect(
+        () => r.text(),
+        throwsA(isA<LuckyParseException>().having(
+          (e) => e.cause,
+          'cause',
+          isNotNull,
+        )),
+      );
+    });
+
+    test('bytes() throws LuckyParseException when data is not a List<int>', () {
+      final r = LuckyResponse(makeResponse(statusCode: 200, data: 'not bytes'));
+      expect(
+        () => r.bytes(),
+        throwsA(isA<LuckyParseException>().having(
+          (e) => e.cause,
+          'cause',
+          isNotNull,
+        )),
+      );
+    });
+  });
 }

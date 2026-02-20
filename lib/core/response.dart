@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../exceptions/lucky_parse_exception.dart';
 
 /// Wraps a Dio [Response] with convenient status helpers and parsing methods.
 ///
@@ -56,16 +57,60 @@ class LuckyResponse {
   // === Parsing helpers ===
 
   /// Casts [data] to a `Map<String, dynamic>` and returns it.
-  Map<String, dynamic> json() => data as Map<String, dynamic>;
+  ///
+  /// Throws [LuckyParseException] if [data] is not a `Map<String, dynamic>`.
+  Map<String, dynamic> json() {
+    try {
+      return data as Map<String, dynamic>;
+    } catch (e) {
+      throw LuckyParseException(
+        'Expected Map<String, dynamic>, got ${data.runtimeType}',
+        cause: e,
+      );
+    }
+  }
 
   /// Casts [data] to a `List<dynamic>` and returns it.
-  List<dynamic> jsonList() => data as List<dynamic>;
+  ///
+  /// Throws [LuckyParseException] if [data] is not a `List`.
+  List<dynamic> jsonList() {
+    try {
+      return data as List<dynamic>;
+    } catch (e) {
+      throw LuckyParseException(
+        'Expected List<dynamic>, got ${data.runtimeType}',
+        cause: e,
+      );
+    }
+  }
 
   /// Casts [data] to a [String] and returns it.
-  String text() => data as String;
+  ///
+  /// Throws [LuckyParseException] if [data] is not a [String].
+  String text() {
+    try {
+      return data as String;
+    } catch (e) {
+      throw LuckyParseException(
+        'Expected String, got ${data.runtimeType}',
+        cause: e,
+      );
+    }
+  }
 
   /// Casts [data] to a `List<int>` (raw bytes) and returns it.
-  List<int> bytes() => data as List<int>;
+  ///
+  /// Throws [LuckyParseException] if [data] is not a `List<int>`.
+  List<int> bytes() {
+    try {
+      return data as List<int>;
+    } catch (e) {
+      throw LuckyParseException(
+        'Expected List<int>, got ${data.runtimeType}',
+        cause: e,
+      );
+    }
+  }
 
   /// Passes `this` to [parser] and returns the result.
   ///

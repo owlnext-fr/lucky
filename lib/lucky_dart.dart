@@ -36,6 +36,7 @@ export 'auth/header_authenticator.dart';
 
 // Exceptions
 export 'exceptions/lucky_exception.dart';
+export 'exceptions/lucky_parse_exception.dart';
 export 'exceptions/connection_exception.dart';
 export 'exceptions/lucky_timeout_exception.dart';
 export 'exceptions/not_found_exception.dart';
