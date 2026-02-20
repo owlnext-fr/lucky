@@ -192,6 +192,7 @@ class _ConnectorWithBothPolicies extends Connector {
 // -- Mock server helpers ------------------------------------------------------
 
 int _flakyCount = 0;
+int _always503Count = 0;
 
 HttpServer? _server;
 int _port = 0;
@@ -266,11 +267,14 @@ void main() {
           await _json(r, 200, {'ok': true});
         }
       },
-      'GET /always503': (r) async =>
-          await _json(r, 503, {'message': 'always down'}),
+      'GET /always503': (r) async {
+        _always503Count++;
+        await _json(r, 503, {'message': 'always down'});
+      },
       'GET /throttletest': (r) async => await _json(r, 200, {'ok': true}),
     });
     _flakyCount = 0;
+    _always503Count = 0;
     connector = _TestConnector('http://127.0.0.1:$_port');
   });
 
@@ -433,6 +437,8 @@ void main() {
       // /always503 never recovers — after 3 attempts returns the 503
       final r = await c.send(_Get('/always503'));
       expect(r.statusCode, 503);
+      // Verify the server was hit exactly maxAttempts (3) times
+      expect(_always503Count, equals(3));
     });
 
     test('does not retry 404', () async {

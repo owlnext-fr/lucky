@@ -285,8 +285,15 @@ abstract class Connector {
         return luckyResponse;
       } on LuckyThrottleException {
         // Throttle exceptions are never retried — propagate immediately.
+        // IMPORTANT: this block must remain above `on LuckyException` because
+        // LuckyThrottleException IS a LuckyException. Moving or removing it
+        // would allow throttle errors to silently enter the retry loop.
         rethrow;
       } on LuckyException catch (e) {
+        // Note: this block is also reached when throwOnError=true causes
+        // _buildException() to throw (e.g. NotFoundException for 404). Custom
+        // RetryPolicy implementations should be aware that shouldRetryOnException
+        // is called for both network-level errors and HTTP-error exceptions.
         final rp = retryPolicy;
         if (rp != null &&
             attempt < rp.maxAttempts &&
